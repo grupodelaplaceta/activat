@@ -44,7 +44,7 @@ export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}
         if(createdActivity.error) throw createdActivity.error;
         activity=createdActivity.data;
       }
-      if((action==='assign_place'||action==='matriculate')&&['admesa','matriculada'].includes(String(current.status||'').toLowerCase())&&current.place){
+      if(action==='assign_place'&&['admesa','matriculada'].includes(String(current.status||'').toLowerCase())&&current.place){
         return NextResponse.json({...current,fees:body.fees||[]});
       }
       if(action==='waitlist'&&String(current.status||'').toLowerCase()==='llista d’espera'&&!current.place){
@@ -56,9 +56,13 @@ export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}
       if(byName.error) throw byName.error;
       const occupiedRows=Array.from(new Map([...(byId.data||[]),...(byName.data||[])].map((row:any)=>[row.id,row])).values());
       const capacity=Number(activity.capacity_override??activity.capacity??0);
+      const preservingAdmittedPlace=action==='matriculate'&&String(current.status||'').toLowerCase()==='admesa'&&current.place;
       if(action==='waitlist'){
         patch.status='llista d’espera';
         patch.place=null;
+      }else if(preservingAdmittedPlace){
+        patch.status='matriculada';
+        patch.place=current.place;
       }else{
         if(capacity>0&&occupiedRows.length>=capacity){
           patch.place=null;
