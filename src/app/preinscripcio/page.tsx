@@ -24,10 +24,23 @@ function wrapText(doc:jsPDF,text:string,x:number,y:number,max:number,line=5){con
 
 export default function Preinscripcio(){
  const [sent,setSent]=useState<any>(null);const [submitError,setSubmitError]=useState('');const [submitting,setSubmitting]=useState(false);
+ const [familyChildren,setFamilyChildren]=useState<string[]>([]);
  const [legalDocs,setLegalDocs]=useState<LegalDocument[]>(legalFallback);const [legalOpen,setLegalOpen]=useState(false);const [legalAccepted,setLegalAccepted]=useState<Record<string,boolean>>({});
  const signatureCanvas=useRef<HTMLCanvasElement>(null);const drawing=useRef(false);
  const [f,setF]=useState<F>({activitat:'Robòtica',curs:'',grup:'',alumne:'',naixement:'',alergies:'',nese:'no',neseDetall:'',autoritzats:'',emergencia:'',tutor:'',dni:'',telefon:'',email:'',adreca:'',municipi:'Tarragona',cp:'',quota:'20',complements:'5',diners:'0',mitja:'Efectiu',isMember:false,childrenCount:'1',childOrder:'1',memberDiscount:'5',secondDiscount:'0',thirdDiscount:'0',imatge:'no'});
  useEffect(()=>{fetch('/api/public/legal').then(response=>response.ok?response.json():null).then(json=>{const documents=(json?.documents||[]).filter((document:LegalDocument)=>document.text&&document.text.length>40);if(documents.length===4)setLegalDocs(documents)}).catch(()=>undefined)},[]);
+ useEffect(()=>{
+  const dni=String(f.dni||'').replace(/[^a-z0-9]/gi,'');
+  if(dni.length<5){setFamilyChildren([]);return}
+  const controller=new AbortController();
+  fetch(`/api/public/registrations?dni=${encodeURIComponent(f.dni)}&activity=${encodeURIComponent(f.activitat)}`,{signal:controller.signal}).then(response=>response.ok?response.json():null).then(json=>{
+    if(!json)return;
+    const students=Array.isArray(json.students)?json.students:[];
+    setFamilyChildren(students);
+    if(students.length)setF((current:any)=>({...current,childrenCount:String(Math.max(Number(current.childrenCount||1),json.nextChildOrder||1)),childOrder:String(json.nextChildOrder||1)}));
+  }).catch(()=>undefined);
+  return ()=>controller.abort();
+ },[f.dni,f.activitat]);
  useEffect(()=>{const canvas=signatureCanvas.current;if(!canvas)return;const ratio=window.devicePixelRatio||1;canvas.width=canvas.clientWidth*ratio;canvas.height=canvas.clientHeight*ratio;const context=canvas.getContext('2d');if(context){context.scale(ratio,ratio);context.strokeStyle='#17131f';context.lineWidth=2;context.lineCap='round';}},[]);
  function signaturePoint(event:React.PointerEvent<HTMLCanvasElement>){const canvas=signatureCanvas.current;if(!canvas)return null;const rect=canvas.getBoundingClientRect();return {x:event.clientX-rect.left,y:event.clientY-rect.top}}
  function startSignature(event:React.PointerEvent<HTMLCanvasElement>){const point=signaturePoint(event);if(!point)return;drawing.current=true;event.currentTarget.setPointerCapture(event.pointerId);const context=event.currentTarget.getContext('2d');context?.beginPath();context?.moveTo(point.x,point.y)}
@@ -138,7 +151,7 @@ export default function Preinscripcio(){
    <div className="field"><label>Condició NESE</label><select value={f.nese} onChange={set('nese')}><option value="no">No</option><option value="si">Sí</option></select></div>
    <div className="field full"><label>Observacions NESE</label><textarea value={f.neseDetall} onChange={set('neseDetall')} rows={2}/></div>
    <div className="full sectionBreak"><span className="eyebrow">2 · Representant legal</span></div>
-   {([['tutor','Nom i cognoms'],['dni','DNI/NIE/passaport'],['telefon','Telèfon'],['email','Correu electrònic'],['adreca','Adreça'],['municipi','Municipi'],['cp','Codi postal']] as any[]).map(([k,l])=><div className="field" key={k}><label>{l}</label><input type={k==='email'?'email':'text'} value={f[k]} onChange={set(k)} required={['tutor','email'].includes(k)}/></div>)}
+  {([['tutor','Nom i cognoms'],['dni','DNI/NIE/passaport'],['telefon','Telèfon'],['email','Correu electrònic'],['adreca','Adreça'],['municipi','Municipi'],['cp','Codi postal']] as any[]).map(([k,l])=><div className="field" key={k}><label>{l}</label><input type={k==='email'?'email':'text'} value={f[k]} onChange={set(k)} required={['tutor','email'].includes(k)}/>{k==='dni'&&familyChildren.length>0&&<small className="notice" style={{display:'block',marginTop:6}}>Hem detectat {familyChildren.length} fill/s en aquesta activitat: {familyChildren.join(', ')}. Aquest serà el fill/a número {Number(f.childOrder)} i s’aplicarà el descompte corresponent.</small>}</div>)}
    <div className="full sectionBreak"><span className="eyebrow">3 · Soci/a i descomptes</span><p className="muted small">Aquestes dades es poden corregir posteriorment des de Secretaria si la família s’ha equivocat.</p></div>
    <div className="field"><label>Condició de soci/a</label><select value={f.isMember?'si':'no'} onChange={e=>handleMember(e.target.value==='si')}><option value="si">Soci/a AFA</option><option value="no">No soci/a</option></select></div>
    <div className="field"><label>Nombre de fills/es registrats/des</label><input type="number" min="1" value={f.childrenCount} onChange={set('childrenCount')}/></div>

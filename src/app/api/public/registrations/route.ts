@@ -4,6 +4,28 @@ import {adminSupabase} from '@/lib/supabase';
 function makeCode(){
   return `AFA-${new Date().getFullYear().toString().slice(-2)}-${Math.random().toString(36).slice(2,5).toUpperCase()}-${Math.floor(100+Math.random()*900)}`;
 }
+function normalizeDocument(value:string){return String(value||'').toUpperCase().replace(/[^A-Z0-9]/g,'')}
+function normalizeActivity(value:string){return String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase()}
+
+export async function GET(req:Request){
+  const url=new URL(req.url);
+  const dni=normalizeDocument(url.searchParams.get('dni')||'');
+  const activity=String(url.searchParams.get('activity')||'').trim();
+  if(!dni||!activity)return NextResponse.json({children:0,nextChildOrder:1});
+  try{
+    if(!process.env.NEXT_PUBLIC_SUPABASE_URL||!process.env.SUPABASE_SERVICE_ROLE_KEY)return NextResponse.json({children:0,nextChildOrder:1});
+    const sb=adminSupabase();
+    const {data:activities}=await sb.from('activities').select('id,name,slug').eq('active',true);
+    const matched=(activities||[]).find((item:any)=>normalizeActivity(item.name)===normalizeActivity(activity)||item.slug===activity.toLowerCase().replace(/\s+/g,'-'));
+    const {data:rows,error}=await sb.from('registrations').select('id,dni,child_order,student_name,activity_id,activity_name');
+    if(error)throw error;
+    const sameActivity=(rows||[]).filter((row:any)=>normalizeDocument(row.dni)===dni&&(matched?row.activity_id===matched.id||normalizeActivity(row.activity_name)===normalizeActivity(matched.name):normalizeActivity(row.activity_name)===normalizeActivity(activity)));
+    return NextResponse.json({children:sameActivity.length,nextChildOrder:sameActivity.length+1,students:sameActivity.map((row:any)=>row.student_name)});
+  }catch(error){
+    console.warn('family child lookup failed',error);
+    return NextResponse.json({children:0,nextChildOrder:1});
+  }
+}
 
 export async function POST(req:Request){
   const f=await req.json();
@@ -67,6 +89,23 @@ export async function POST(req:Request){
     if(matchedActivity){
       record.activity_id = matchedActivity.id;
       record.activity_name = matchedActivity.name;
+    }
+
+    const normalizedDni=normalizeDocument(f.dni);
+    if(normalizedDni){
+      const {data:familyRows,error:familyError}=await sb.from('registrations').select('id,dni,student_name,child_order,activity_id,activity_name');
+      if(familyError)throw familyError;
+      const sameActivity=(familyRows||[]).filter((row:any)=>
+        normalizeDocument(row.dni)===normalizedDni&&((record.activity_id&&row.activity_id===record.activity_id)||normalizeActivity(row.activity_name)===normalizeActivity(record.activity_name))
+      );
+      const nextChildOrder=sameActivity.length+1;
+      const siblingDiscount=nextChildOrder===2?Number(f.secondDiscount||0):nextChildOrder>=3?Number(f.thirdDiscount||0):0;
+      record.child_order=nextChildOrder;
+      record.registered_children_count=Math.max(Number(f.childrenCount||1),nextChildOrder);
+      record.sibling_discount_amount=siblingDiscount;
+      record.discount_amount=Number(record.member_discount_amount||0)+siblingDiscount;
+      record.total_amount=Math.max(0,record.base_amount-record.discount_amount)+record.complements_amount;
+      record.discount_label=[record.member_discount_amount?'Soci/a':'',siblingDiscount?'Germans':''].filter(Boolean).join(' · ');
     }
 
     const {data:created,error}=await sb.from('registrations').insert(record).select('id,code,total_amount').single();
