@@ -622,6 +622,31 @@ export default function Gestio() {
             <strong>{data.kpis.Pendent}</strong>
           </div>
         </div>
+        <section className="card activityAdminOverview" style={{ marginBottom: 18 }}>
+          <div className="panelTitle">
+            <div>
+              <h2>Activitats</h2>
+              <span className="muted small">Gestiona capacitat, assignacions i estat de cada activitat.</span>
+            </div>
+            <span className="pill purple">{(data.activities || []).length}</span>
+          </div>
+          <div className="statsGrid">
+            {(data.activities || []).map((activity: any) => (
+              <article className="statTile" key={activity.id || activity.name}>
+                <b>{activity.name}</b>
+                <span>{activity.occupied || 0} ocupades · {activity.available ?? "—"} lliures</span>
+                <strong>{activity.effective_capacity ?? activity.capacity ?? 0} places</strong>
+                <small>{activity.vacancies_open === false ? "Assignació interna tancada al públic" : "Assignació disponible"}</small>
+                <div className="row" style={{ marginTop: 10, flexWrap: "wrap" }}>
+                  <input className="fieldInput capacityInput" type="number" min="0" value={activity.capacity_override ?? activity.capacity ?? 0} onChange={(event) => setData((current: any) => ({ ...current, activities: current.activities.map((item: any) => item.id === activity.id ? { ...item, capacity_override: Number(event.target.value) } : item) }))} />
+                  <button className="btn secondary" onClick={() => updateActivity(activity)}>{activity.vacancies_open === false ? "Obrir" : "Tancar"}</button>
+                  <button className="btn secondary" onClick={() => setView("Places i vacants")}>Gestionar</button>
+                </div>
+              </article>
+            ))}
+            {!(data.activities || []).length && <p className="muted">No hi ha activitats carregades. Revisa la taula `activities` de Supabase.</p>}
+          </div>
+        </section>
         <section className="card activityStats" style={{ marginBottom: 18 }}>
           <div className="panelTitle">
             <div>
@@ -864,54 +889,6 @@ export default function Gestio() {
               </table>
             </div>
           </section>
-          +{" "}
-          <aside>
-            <section className="card">
-              <h2>Activitats</h2>
-              <div className="miniList">
-                {(data.activities || []).map((activity: any) => (
-                  <div className="miniItem" key={activity.id}>
-                    <div>
-                      <b>{activity.name}</b>
-                      <small className="muted" style={{ display: "block" }}>
-                        {activity.occupied || 0} ocupades · {activity.available ?? Math.max(0, Number(activity.capacity_override ?? activity.capacity ?? 0) - Number(activity.occupied || 0))} lliures · límit{" "}
-                        {activity.capacity_override ?? activity.capacity}
-                      </small>
-                    </div>
-                    <div className="row">
-                      <input
-                        className="fieldInput capacityInput"
-                        type="number"
-                        min="0"
-                        value={activity.capacity_override ?? activity.capacity}
-                        onChange={(event) =>
-                          setData((current: any) => ({
-                            ...current,
-                            activities: current.activities.map((item: any) =>
-                              item.id === activity.id
-                                ? {
-                                    ...item,
-                                    capacity_override: Number(
-                                      event.target.value,
-                                    ),
-                                  }
-                                : item,
-                            ),
-                          }))
-                        }
-                      />
-                      <button
-                        className="btn secondary"
-                        onClick={() => updateActivity(activity)}
-                      >
-                        {activity.vacancies_open === false ? "Obrir" : "Tancar"}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </aside>
         </div>
         {selected && (
           <div

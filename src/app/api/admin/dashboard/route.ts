@@ -25,8 +25,12 @@ export async function GET(req:NextRequest){
     });
 
     const {data:acts}=await sb.from('activities').select('*').order('name');
-    const activities=(acts||[]).map((activity:any)=>{
-      const occupied=registrations.filter((record:any)=>record.activity_id===activity.id && ['admesa','matriculada'].includes(String(record.status||'').toLowerCase())).length;
+    const sourceActivities=(acts&&acts.length>0)?acts:demoActivities;
+    const activities=sourceActivities.map((activity:any)=>{
+      const occupied=registrations.filter((record:any)=>
+        (record.activity_id===activity.id || record.activity_name===activity.name) &&
+        ['admesa','matriculada'].includes(String(record.status||'').toLowerCase())
+      ).length;
       return {
         ...activity,
         occupied,
