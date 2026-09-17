@@ -4,7 +4,8 @@ import {AFA_LOGO} from '@/lib/demo';
 
 export const metadata={
   title:'ACTIVA’T · Secretaria Virtual · AFA Escola Sant Salvador',
-  description:"Activitats, places i gestions de l'AFA, en un sol lloc."
+  description:"Activitats, places i gestions de l'AFA, en un sol lloc.",
+  icons:{icon:'https://i.postimg.cc/02cV2JFP/www-afaescolasantsalvador-org.png',apple:'https://i.postimg.cc/02cV2JFP/www-afaescolasantsalvador-org.png'}
 };
 
 export default function RootLayout({children}:{children:React.ReactNode}){

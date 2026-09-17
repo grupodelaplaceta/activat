@@ -1,8 +1,14 @@
 import Link from 'next/link';
 import {demoActivities, AFA_LOGO} from '@/lib/demo';
 
+const BANNER_VIDEO='https://www.youtube.com/embed/_6yDqoU7yWk?autoplay=1&mute=1&controls=0&loop=1&playlist=_6yDqoU7yWk&playsinline=1&modestbranding=1&rel=0';
+
 export default function Home(){
   return <main className="container homeCommercial">
+    <section className="brandBanner homeVideoBanner">
+      <iframe src={BANNER_VIDEO} title="Vídeo de l'AFA Escola Sant Salvador" allow="autoplay; encrypted-media" aria-hidden="true" />
+      <div className="brandBannerContent"><span className="eyebrow">AFA Escola Sant Salvador</span><h1>Una escola activa també fora de l’aula.</h1><p>Activitats pensades per compartir, descobrir i créixer plegats.</p><Link className="btn primary" href="/activitats">Explorar activitats →</Link></div>
+    </section>
     <section className="commercialHero">
       <div className="commercialHeroCopy">
         <div className="afaLockup"><img src={AFA_LOGO} alt="AFA Escola Sant Salvador" /><div><span>AFA Escola Sant Salvador</span><small>Activitats extraescolars · Curs 2026–2027</small></div></div>

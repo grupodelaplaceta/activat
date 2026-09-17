@@ -24,6 +24,17 @@ export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}
     patch.total_amount=merged.special_tariff_enabled&&merged.special_tariff_amount!==null&&merged.special_tariff_amount!==undefined?Math.max(0,Number(merged.special_tariff_amount)):automatic;
     patch.discount_amount=Math.max(0,Number(merged.member_discount_amount||0)+Number(merged.sibling_discount_amount||0));
     if(markPaid) patch.paid_amount=patch.total_amount;
-    const {data,error}=await sb.from('registrations').update(patch).eq('id',id).select('*').single();if(error)throw error;return NextResponse.json(data)
+    const {data,error}=await sb.from('registrations').update(patch).eq('id',id).select('*').single();if(error)throw error;
+    if(Array.isArray(body.fees)){
+      let {data:enrollment,error:enrollmentError}=await sb.from('enrollments').select('id').eq('registration_id',id).maybeSingle();
+      if(enrollmentError)throw enrollmentError;
+      if(!enrollment){const created=await sb.from('enrollments').insert({registration_id:id,status:'pendent'}).select('id').single();if(created.error)throw created.error;enrollment=created.data;}
+      for(const fee of body.fees){
+        if(!fee.month)continue;
+        const {error:feeError}=await sb.from('monthly_fees').upsert({enrollment_id:enrollment.id,month:String(fee.month).slice(0,10),amount:Math.max(0,Number(fee.amount||0)),discount:Math.max(0,Number(fee.discount||0)),total:Math.max(0,Number(fee.total||0)),due_date:fee.due_date||null,status:fee.status==='Nula'?'Nula':fee.status||'pendent',paid_at:fee.status==='pagada'?(fee.paid_at||new Date().toISOString()):null},{onConflict:'enrollment_id,month'});
+        if(feeError)throw feeError;
+      }
+    }
+    return NextResponse.json({...data,fees:body.fees||[]})
   }catch{return NextResponse.json({error:'No s’ha pogut actualitzar l’expedient.'},{status:500})}
 }
