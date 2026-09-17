@@ -13,7 +13,8 @@
     "jspdf": "^3.0.2",
     "next": "^15.5.3",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "react-markdown": "^10.1.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
