@@ -5,6 +5,12 @@ import ReactMarkdown from 'react-markdown';
 
 type F=Record<string,any>;
 type LegalDocument={id:string,title:string,text:string};
+const legalFallback:LegalDocument[]=[
+ {id:'normes',title:'Normes de funcionament',text:'# Normes de funcionament\n\nLa participació en les activitats implica respectar els horaris, les indicacions de l’equip responsable, les normes de convivència i les instruccions de l’AFA i del centre. La família comunicarà qualsevol incidència, absència, al·lèrgia o necessitat rellevant. La plaça queda condicionada a la disponibilitat i a la correcta formalització de la inscripció.'},
+ {id:'pagaments',title:'Política de pagaments',text:'# Política de pagaments\n\nLes quotes es gestionen mensualment. Cada quota té el seu import, data límit, estat i rebut individual. El pagament s’ha de fer pel mitjà comunicat per l’AFA dins del termini indicat. Les baixes, devolucions i incidències de pagament es tramitaran amb Secretaria segons les condicions de l’activitat.'},
+ {id:'termes',title:'Termes i condicions',text:'# Termes i condicions\n\nL’ús d’ACTIVA’T i la sol·licitud d’una activitat requereixen facilitar dades certes i acceptar les condicions de participació. L’AFA pot gestionar grups, places, comunicacions, pagaments i incidències relacionades amb el servei. La plaça no queda confirmada fins que Secretaria en valida l’adjudicació.'},
+ {id:'privacitat',title:'Política de privacitat',text:'# Política de privacitat\n\nL’AFA Escola Sant Salvador tracta les dades per gestionar preinscripcions, matrícules, places, quotes, comunicacions i incidències. La persona interessada pot exercir els drets d’accés, rectificació, supressió, oposició, limitació i portabilitat escrivint a contacte@afaescolasantsalvador.org. L’autorització d’imatge és específica i voluntària.'}
+];
 const AFA_LOGO='https://i.postimg.cc/02cV2JFP/www-afaescolasantsalvador-org.png';
 const ROBOTICA_PHOTO='https://i.postimg.cc/9RdLMHz3/Captura-de-pantalla-2026-07-23-154054.png';
 const ACTIVITIES:any={
@@ -18,10 +24,10 @@ function wrapText(doc:jsPDF,text:string,x:number,y:number,max:number,line=5){con
 
 export default function Preinscripcio(){
  const [sent,setSent]=useState<any>(null);const [submitError,setSubmitError]=useState('');const [submitting,setSubmitting]=useState(false);
- const [legalDocs,setLegalDocs]=useState<LegalDocument[]>([]);const [legalOpen,setLegalOpen]=useState(false);const [legalAccepted,setLegalAccepted]=useState<Record<string,boolean>>({});
+ const [legalDocs,setLegalDocs]=useState<LegalDocument[]>(legalFallback);const [legalOpen,setLegalOpen]=useState(false);const [legalAccepted,setLegalAccepted]=useState<Record<string,boolean>>({});
  const signatureCanvas=useRef<HTMLCanvasElement>(null);const drawing=useRef(false);
  const [f,setF]=useState<F>({activitat:'Robòtica',curs:'',grup:'',alumne:'',naixement:'',alergies:'',nese:'no',neseDetall:'',autoritzats:'',emergencia:'',tutor:'',dni:'',telefon:'',email:'',adreca:'',municipi:'Tarragona',cp:'',quota:'20',complements:'5',diners:'0',mitja:'Efectiu',isMember:false,childrenCount:'1',childOrder:'1',memberDiscount:'5',secondDiscount:'0',thirdDiscount:'0',imatge:'no'});
- useEffect(()=>{fetch('/api/public/legal').then(response=>response.ok?response.json():null).then(json=>json&&setLegalDocs(json.documents||[])).catch(()=>setLegalDocs([]))},[]);
+ useEffect(()=>{fetch('/api/public/legal').then(response=>response.ok?response.json():null).then(json=>{const documents=(json?.documents||[]).filter((document:LegalDocument)=>document.text&&document.text.length>40);if(documents.length===4)setLegalDocs(documents)}).catch(()=>undefined)},[]);
  useEffect(()=>{const canvas=signatureCanvas.current;if(!canvas)return;const ratio=window.devicePixelRatio||1;canvas.width=canvas.clientWidth*ratio;canvas.height=canvas.clientHeight*ratio;const context=canvas.getContext('2d');if(context){context.scale(ratio,ratio);context.strokeStyle='#17131f';context.lineWidth=2;context.lineCap='round';}},[]);
  function signaturePoint(event:React.PointerEvent<HTMLCanvasElement>){const canvas=signatureCanvas.current;if(!canvas)return null;const rect=canvas.getBoundingClientRect();return {x:event.clientX-rect.left,y:event.clientY-rect.top}}
  function startSignature(event:React.PointerEvent<HTMLCanvasElement>){const point=signaturePoint(event);if(!point)return;drawing.current=true;event.currentTarget.setPointerCapture(event.pointerId);const context=event.currentTarget.getContext('2d');context?.beginPath();context?.moveTo(point.x,point.y)}

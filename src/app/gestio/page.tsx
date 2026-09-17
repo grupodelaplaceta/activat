@@ -312,8 +312,19 @@ export default function Gestio() {
     const logo = await imageData(AFA_LOGO);
     pdfHeader(doc, logo, `LLISTA · ${title.toUpperCase()}`, `Generada el ${new Date().toLocaleDateString("ca-ES")}`);
     let y = 60;
+    doc.setTextColor(23, 19, 31); doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.text("Resum per activitat", 16, y);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); y += 7;
+    activityStats.forEach((activity: any) => {
+      const limit = Number(activity.capacity_override ?? activity.capacity ?? 0);
+      const occupied = Number(activity.occupied || 0);
+      const available = Math.max(0, limit - occupied);
+      doc.text(`${activity.name}: ${occupied} ocupades · ${available} lliures · ${activity.matriculated || 0} matriculades · ${money(activity.paid)} cobrats`, 16, y);
+      y += 5;
+    });
+    y += 8;
+    doc.setTextColor(91, 33, 182); doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.text(`${rows.length} expedients en aquesta llista`, 16, y); y += 10;
     rows.forEach((record: any, index: number) => {
-      if (y > 275) { doc.addPage(); y = 20; }
+      if (y > 275) { doc.addPage(); pdfHeader(doc, logo, `LLISTA · ${title.toUpperCase()}`, `Continuació · ${new Date().toLocaleDateString("ca-ES")}`); y = 60; }
       doc.setFont("helvetica", "bold"); doc.text(`${index + 1}. ${record.student_name || "—"}`, 16, y);
       doc.setFont("helvetica", "normal"); doc.text(`${record.code} · ${record.activity_name} · ${record.status}${record.place ? ` · plaça ${record.place}` : ""}`, 22, y + 5);
       y += 13;
