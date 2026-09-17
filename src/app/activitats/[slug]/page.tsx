@@ -1,2 +1,101 @@
-import Link from 'next/link'; import {demoActivities} from '@/lib/demo';
-export default async function Fitxa({params}:{params:Promise<{slug:string}>}){const {slug}=await params;const a=demoActivities.find(x=>x.slug===slug)||demoActivities[0];const free=a.capacity-a.occupied;return <main className="container"><section className="detailHero"><span className="pill ok">● Places disponibles</span><h1>{a.name}</h1><p className="muted">Curs 2026–2027 · Informació oficial de l’activitat</p></section><div className="detailLayout"><div><section className="card"><div className="detailCover">{a.name.toLowerCase().includes('rob')?'✦':'◌'}</div><div className="section"><h2>Sobre l’activitat</h2><p className="muted">{a.description} Aquesta fitxa és el punt central per consultar les condicions, el funcionament i els passos necessaris abans de formalitzar la plaça.</p></div><hr className="divider"/><div className="grid" style={{gridTemplateColumns:'1fr 1fr'}}><div><span className="eyebrow">Cursos</span><h3>{a.courses}</h3></div><div><span className="eyebrow">Horari</span><h3>{a.schedule}</h3></div></div><div className="section"><h2>Calendari</h2><p className="muted">L’activitat segueix el calendari establert per l’AFA. Els períodes no lectius i possibles canvis s’indiquen en aquesta secció.</p></div><div className="section"><h2>Documents</h2><div className="grid" style={{gridTemplateColumns:'1fr 1fr'}}><div className="card"><b>Informació de l’activitat</b><p className="muted small">Condicions i funcionament</p></div><div className="card"><b>Normativa i autoritzacions</b><p className="muted small">Documents previs al tràmit</p></div></div></div></section></div><aside className="card sideCard"><span className="eyebrow">Places</span><div className="price" style={{marginTop:6}}>{free}</div><p className="muted">places disponibles de {a.capacity}</p><div className="bar"><i style={{width:`${Math.round(a.occupied/a.capacity*100)}%`}}/></div><hr className="divider"/><span className="eyebrow">Preu</span><div className="price" style={{marginTop:5}}>{a.price.toFixed(2).replace('.',',')} €</div><p className="muted small">Import indicat per al període de la preinscripció.</p><Link className="btn primary" style={{width:'100%',marginTop:8}} href={`/preinscripcio?activitat=${encodeURIComponent(a.name)}`}>Preinscriure’m →</Link><p className="muted small" style={{textAlign:'center',marginTop:10}}>No cal crear cap compte.</p></aside></div></main>}
+import Link from 'next/link';
+import {demoActivities} from '@/lib/demo';
+
+const BANNER_VIDEO='https://www.youtube.com/embed/_6yDqoU7yWk?autoplay=1&mute=1&controls=0&loop=1&playlist=_6yDqoU7yWk&playsinline=1&modestbranding=1&rel=0&disablekb=1&enablejsapi=1';
+
+export default async function Fitxa({params}:{params:Promise<{slug:string}>}){
+  const {slug}=await params;
+  const a=demoActivities.find(x=>x.slug===slug)||demoActivities[0];
+  const free=Math.max(0,a.capacity-a.occupied);
+  const pct=Math.min(100,Math.round(a.occupied/a.capacity*100));
+  const isRob=a.name.toLowerCase().includes('rob');
+  const memberSave=Math.max(0,a.price-a.memberPrice);
+  const hasSibling=Number(a.secondChildDiscount||0)>0;
+  const hasThird=Number(a.thirdChildDiscount||0)>0;
+  return <main className="container detailPage">
+    <section className="brandBanner detailBanner">
+      <iframe src={BANNER_VIDEO} title="Vídeo de l'AFA Escola Sant Salvador" allow="autoplay; encrypted-media" aria-hidden="true" />
+      <div className="brandBannerContent detailBannerContent">
+        <div className="detailBannerTop"><span className="bannerBadge">ACTIVA’T · Curs 2026–2027</span><span className="bannerBadge">AFA Escola Sant Salvador</span></div>
+        <h1>{a.name}</h1>
+        <p>{a.description}</p>
+        <div className="detailBannerFacts"><span>⌚ {a.schedule}</span><span>👥 {a.courses}</span><span>● {free} places disponibles</span></div>
+      </div>
+    </section>
+
+    <div className="detailLayout detailLayoutPro">
+      <div>
+        <section className="card detailMainCard">
+          {a.image && <div className="detailPhoto"><img src={a.image} alt={`Activitat de ${a.name}`} /><span className="photoTag">{a.name}</span></div>}
+          {!a.image && <div className="detailVisualEmpty"><span>ACTIVA’T</span><b>{a.name}</b></div>}
+
+          <div className="detailIntro">
+            <div><span className="eyebrow">Organització</span><h2>{a.organizer}</h2></div>
+            <img className="detailOrganizerLogo" src={a.organizerLogo} alt={a.organizer}/>
+          </div>
+
+          <div className="section detailSection">
+            <span className="eyebrow">Sobre l’activitat</span>
+            <h2>{isRob?'Aprendre fent, crear i experimentar.':'Un servei pensat per començar el dia amb tranquil·litat.'}</h2>
+            <p className="muted">{a.description} Consulta en aquesta fitxa l’horari, les places, les condicions econòmiques i el funcionament de la preinscripció.</p>
+          </div>
+
+          <div className="detailInfoGrid">
+            <div className="infoTile"><span>HORARI</span><strong>{a.schedule}</strong></div>
+            <div className="infoTile"><span>CURSOS</span><strong>{a.courses}</strong></div>
+            <div className="infoTile"><span>PLACES</span><strong>{a.capacity} places</strong><small>{free} disponibles actualment</small></div>
+            <div className="infoTile"><span>ORGANITZA</span><strong>{a.organizer}</strong></div>
+          </div>
+
+          {isRob && <div className="detailHighlight"><div className="highlightIcon">☕</div><div><b>Berenar inclòs en l’horari</b><p>De 16:00 a 16:45 es reserva l’espai per al berenar abans de continuar l’activitat.</p></div></div>}
+
+          <div className="section detailSection">
+            <span className="eyebrow">Condicions econòmiques</span>
+            <h2>Tarifes del curs</h2>
+            <div className="priceRows">
+              <div><span>Quota general</span><strong>{a.price.toFixed(2).replace('.',',')} €</strong></div>
+              <div><span>Quota socis AFA</span><strong>{a.memberPrice.toFixed(2).replace('.',',')} €</strong></div>
+              {hasSibling && <div><span>Descompte segon germà</span><strong>−{a.secondChildDiscount.toFixed(2).replace('.',',')} €</strong></div>}
+              {hasThird && <div><span>Descompte tercer germà</span><strong>−{a.thirdChildDiscount.toFixed(2).replace('.',',')} €</strong></div>}
+              <div><span>Quota extraordinària primer mes</span><strong>{a.extraFirstMonth?`+${a.extraFirstMonth.toFixed(2).replace('.',',')} €`:'Cap'}</strong></div>
+            </div>
+            {memberSave>0 && <p className="help">Els descomptes de soci/a i germans s’apliquen segons la situació indicada a la preinscripció i poden ser revisats per Secretaria.</p>}
+          </div>
+
+          <div className="section detailSection">
+            <span className="eyebrow">Pagaments</span>
+            <h2>Quan s’ha de pagar?</h2>
+            <p className="muted">El pagament es realitza una setmana abans de cada període. Per exemple, la quota d’octubre es paga l’últim dimarts de setembre. La primera quota correspon al mes següent al de l’emissió de la inscripció.</p>
+            <div className="notice paymentNotice"><b>Pagament presencial</b><span>Cal fer el pagament immediatament a l’AFA els dimarts de 14:45 a 16:00 h.</span></div>
+          </div>
+
+          <div className="section detailSection">
+            <span className="eyebrow">Places</span>
+            <h2>Situació actual</h2>
+            <div className="capacityHead"><span>{a.occupied} de {a.capacity} places ocupades</span><b>{free} disponibles</b></div>
+            <div className="bar detailBar"><i style={{width:`${pct}%`}}/></div>
+            <p className="muted small">La disponibilitat pot canviar mentre es processen les preinscripcions i els pagaments.</p>
+          </div>
+
+          <div className="section detailSection">
+            <span className="eyebrow">Abans de preinscriure’t</span>
+            <h2>Documentació i normativa</h2>
+            <div className="docGrid"><div className="docItem"><b>Informació de l’activitat</b><span>Horaris, places i condicions.</span></div><div className="docItem"><b>Normativa de l’AFA</b><span>Normes i autoritzacions del servei.</span></div><div className="docItem"><b>Protecció de dades</b><span>Informació bàsica i drets.</span></div></div>
+          </div>
+        </section>
+      </div>
+
+      <aside className="card sideCard detailSideCard">
+        <span className="eyebrow">Preinscripció</span>
+        <div className="sideAvailability"><strong>{free}</strong><span>places<br/>disponibles</span></div>
+        <div className="bar"><i style={{width:`${pct}%`}}/></div>
+        <div className="sidePrice"><small>Des de</small><strong>{a.price.toFixed(2).replace('.',',')} €</strong><span>Quota general</span></div>
+        <div className="sidePriceAlt"><b>{a.memberPrice.toFixed(2).replace('.',',')} €</b><span>per a socis AFA</span></div>
+        <div className="sideFacts"><div><span>Horari</span><b>{a.schedule}</b></div><div><span>Cursos</span><b>{a.courses}</b></div></div>
+        <Link className="btn primary" style={{width:'100%',marginTop:15}} href={`/preinscripcio?activitat=${encodeURIComponent(a.name)}`}>Preinscriure’m →</Link>
+        <Link className="btn secondary" style={{width:'100%',marginTop:8}} href="/activitats">← Tornar a activitats</Link>
+        <p className="muted small sideNoAccount">No cal crear cap compte.</p>
+      </aside>
+    </div>
+  </main>
+}

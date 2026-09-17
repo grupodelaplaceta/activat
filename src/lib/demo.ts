@@ -1,5 +1,5 @@
 export const AFA_LOGO = "https://i.postimg.cc/02cV2JFP/www-afaescolasantsalvador-org.png";
-export const ROBOTICA_IMAGE = "https://i.postimg.cc/9RdLMHz3/Captura-de-pantalla-2026-07-23-154054.png";
+export const ROBOTICA_IMAGE = "https://i.postimg.cc/FRq8T94K/Captura-de-pantalla-2026-07-23-154054.png";
 export const demoActivities = [
  {id:'demo-rob',slug:'robotica-2026-2027',name:'Robòtica',description:"Activitat extraescolar de l'AFA Escola Sant Salvador.",courses:'1r · 2n · 3r de Primària',schedule:'Dimecres · 16:00–17:30 (berenar 16:00–16:45)',capacity:12,occupied:9,price:20,memberPrice:15,secondChildDiscount:0,thirdChildDiscount:0,extraFirstMonth:5,active:true,image:ROBOTICA_IMAGE,organizer:'AFA Escola Sant Salvador',organizerLogo:AFA_LOGO},
  {id:'demo-aco',slug:'acollida-matinal-2026-2027',name:'Acollida Matinal',description:"Servei d'acollida matinal de l'AFA Escola Sant Salvador.",courses:'Infantil · Primària',schedule:'Tots els dies · 08:00–09:15',capacity:12,occupied:8,price:30,memberPrice:30,secondChildDiscount:5,thirdChildDiscount:8.5,extraFirstMonth:0,active:true,image:'',organizer:'AFA Escola Sant Salvador',organizerLogo:AFA_LOGO}
