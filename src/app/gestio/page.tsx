@@ -2,6 +2,8 @@
 import { useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
 
+const AFA_LOGO = "https://i.postimg.cc/02cV2JFP/www-afaescolasantsalvador-org.png";
+
 const nav = [
   ["⌂", "Inici"],
   ["◫", "Preinscripcions"],
@@ -53,6 +55,61 @@ const autoTotal = (record: any) =>
       Number(record.member_discount_amount || 0) -
       Number(record.sibling_discount_amount || 0),
   ) + Number(record.complements_amount || 0);
+
+async function imageData(url: string) {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return await new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return "";
+  }
+}
+
+function pdfHeader(doc: jsPDF, logo: string, title: string, subtitle: string) {
+  const width = 210;
+  doc.setFillColor(255, 255, 255);
+  doc.rect(0, 0, width, 27, "F");
+  if (logo) {
+    try { doc.addImage(logo, "PNG", 16, 5, 22, 15); } catch { /* logo is optional */ }
+  }
+  doc.setTextColor(23, 19, 31);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  doc.text("AFA Escola Sant Salvador", 44, 12);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7.5);
+  doc.setTextColor(113, 107, 124);
+  doc.text("ACTIVA’T · Secretaria Virtual · Curs 2026–2027", 44, 18);
+  doc.setDrawColor(231, 228, 235);
+  doc.line(16, 25, 194, 25);
+  doc.setTextColor(91, 33, 182);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(17);
+  doc.text(title, 16, 39);
+  doc.setTextColor(113, 107, 124);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text(subtitle, 16, 46);
+}
+
+function pdfFooter(doc: jsPDF, code: string) {
+  const pages = doc.getNumberOfPages();
+  for (let page = 1; page <= pages; page += 1) {
+    doc.setPage(page);
+    doc.setDrawColor(231, 228, 235);
+    doc.line(16, 286, 194, 286);
+    doc.setTextColor(113, 107, 124);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7);
+    doc.text(`ACTIVA’T · AFA Escola Sant Salvador · ${code}`, 16, 292);
+    doc.text(`Pàgina ${page}/${pages}`, 194, 292, { align: "right" });
+  }
+}
 
 export default function Gestio() {
   const [secret, setSecret] = useState("");
@@ -221,7 +278,7 @@ export default function Gestio() {
       setSelected({ ...json, fees: json.fees || selected.fees || [] });
     }
   }
-  function downloadList(format: "csv" | "pdf") {
+  async function downloadList(format: "csv" | "pdf") {
     const title = view === "Llistes d’espera" ? "Llista d’espera" : view === "Matrícules" ? "Matrícules" : "Places i vacants";
     if (format === "csv") {
       const header = ["Posició", "Codi", "Alumne/a", "Activitat", "Família", "Estat", "Plaça"];
@@ -231,15 +288,16 @@ export default function Gestio() {
       return;
     }
     const doc = new jsPDF({ unit: "mm", format: "a4" });
-    doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.text(`ACTIVA’T · ${title}`, 16, 20);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.text(`Generat el ${new Date().toLocaleDateString("ca-ES")}`, 16, 27);
-    let y = 38;
+    const logo = await imageData(AFA_LOGO);
+    pdfHeader(doc, logo, `LLISTA · ${title.toUpperCase()}`, `Generada el ${new Date().toLocaleDateString("ca-ES")}`);
+    let y = 60;
     rows.forEach((record: any, index: number) => {
       if (y > 275) { doc.addPage(); y = 20; }
       doc.setFont("helvetica", "bold"); doc.text(`${index + 1}. ${record.student_name || "—"}`, 16, y);
       doc.setFont("helvetica", "normal"); doc.text(`${record.code} · ${record.activity_name} · ${record.status}${record.place ? ` · plaça ${record.place}` : ""}`, 22, y + 5);
       y += 13;
     });
+    pdfFooter(doc, title);
     doc.save(`${title.toLowerCase().replaceAll(" ", "-")}.pdf`);
   }
   const rows = useMemo(() => {
@@ -310,8 +368,9 @@ export default function Gestio() {
       };
     });
   }, [data]);
-  function receipt(record: any) {
+  async function receipt(record: any) {
     const doc = new jsPDF({ unit: "mm", format: "a4" });
+    const logo = await imageData(AFA_LOGO);
     const received = Number(record.paid_amount || 0);
     const total = Number(record.total_amount || 0);
     const change = Math.max(0, received - total);
@@ -320,47 +379,42 @@ export default function Gestio() {
       ? dueDate(record.start_month)
       : dueDate(months[0]);
     const late = record.payment_date && record.payment_date > deadline;
+    pdfHeader(doc, logo, "REBUT DE PAGAMENT", `Justificant ${record.code} · ${record.payment_date || today}`);
+    doc.setFillColor(243, 237, 255);
+    doc.roundedRect(16, 57, 178, 42, 4, 4, "F");
     doc.setTextColor(23, 19, 31);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(22);
-    doc.text("AFA Escola Sant Salvador", 18, 25);
-    doc.setFontSize(16);
-    doc.text("REBUT DE PAGAMENT", 18, 42);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(`Número: ${record.code}`, 18, 52);
-    doc.text(`Data: ${record.payment_date || today}`, 18, 59);
-    doc.text(`Activitat: ${record.activity_name}`, 18, 66);
-    doc.line(18, 72, 192, 72);
     doc.setFontSize(11);
-    doc.text(`Alumne/a: ${record.student_name}`, 18, 85);
-    doc.text(`Representant: ${record.representative_name}`, 18, 93);
-    doc.line(18, 100, 192, 100);
-    doc.setFont("helvetica", "bold");
-    doc.text(`Primera quota / import rebut: ${money(total)}`, 18, 114);
-    doc.text(`Import rebut: ${money(received)}`, 18, 124);
-    doc.text(`Canvi: ${money(change)}`, 18, 134);
+    doc.text(record.student_name || "Alumne/a", 23, 68);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text(
-      `Mitjà de pagament: ${record.payment_method || "Efectiu"}`,
-      18,
-      146,
-    );
-    doc.text(`Data límit del període: ${deadline}`, 18, 154);
+    doc.setTextColor(113, 107, 124);
+    doc.text(`Representant: ${record.representative_name || "—"}`, 23, 76);
+    doc.text(`Activitat: ${record.activity_name || "—"}`, 23, 84);
+    doc.text(`Mitjà de pagament: ${record.payment_method || "Efectiu"}`, 23, 92);
+    doc.setTextColor(23, 19, 31);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Import de la quota", 16, 119);
+    doc.text("Import rebut", 16, 131);
+    doc.text("Canvi", 16, 143);
+    doc.setTextColor(91, 33, 182);
+    doc.setFontSize(13);
+    doc.text(money(total), 194, 119, { align: "right" });
+    doc.text(money(received), 194, 131, { align: "right" });
+    doc.text(money(change), 194, 143, { align: "right" });
+    doc.setDrawColor(231, 228, 235);
+    doc.line(16, 151, 194, 151);
+    doc.setTextColor(113, 107, 124);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(`Data límit del període: ${deadline}`, 16, 162);
     if (late) {
       doc.setTextColor(161, 33, 33);
       doc.setFont("helvetica", "bold");
-      doc.text("AVÍS: pagament registrat fora de termini.", 18, 164);
+      doc.text("AVÍS: pagament registrat fora de termini.", 16, 173);
     }
-    doc.setTextColor(113, 107, 124);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.text(
-      "Rebut oficial ACTIVA’T · Conserva aquest document com a justificant.",
-      18,
-      280,
-    );
+    pdfFooter(doc, record.code);
     doc.save(`rebut-${record.code}.pdf`);
   }
   if (!data)
@@ -411,84 +465,37 @@ export default function Gestio() {
     });
     if (response.ok) load();
   };
-  function registrationPdf(record: any) {
+  async function registrationPdf(record: any) {
     const doc = new jsPDF({ unit: "mm", format: "a4" });
-    const margin = 18;
-    doc.setTextColor(23, 19, 31);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(21);
-    doc.text("AFA Escola Sant Salvador", margin, 25);
-    doc.setFontSize(16);
-    doc.text("FULL DE PREINSCRIPCIÓ", margin, 39);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(`Codi: ${record.code}`, margin, 49);
-    doc.text(
-      `Data: ${String(record.created_at || new Date().toISOString()).slice(0, 10)}`,
-      margin,
-      56,
-    );
-    doc.line(margin, 63, 192, 63);
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.text("Dades de l’alumne/a", margin, 76);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Nom: ${record.student_name || "—"}`, margin, 86);
-    doc.text(`Data de naixement: ${record.birth_date || "—"}`, margin, 94);
-    doc.text(
-      `Curs / grup: ${record.course || "—"} · ${record.group_name || "—"}`,
-      margin,
-      102,
-    );
-    doc.text(`Activitat: ${record.activity_name || "—"}`, margin, 110);
-    doc.setFont("helvetica", "bold");
-    doc.text("Representant legal", margin, 126);
-    doc.setFont("helvetica", "normal");
-    doc.text(`Nom: ${record.representative_name || "—"}`, margin, 136);
-    doc.text(`DNI/NIE: ${record.dni || "—"}`, margin, 144);
-    doc.text(`Telèfon: ${record.phone || "—"}`, margin, 152);
-    doc.text(`Correu: ${record.email || "—"}`, margin, 160);
-    doc.setFont("helvetica", "bold");
-    doc.text("Persones autoritzades i emergències", margin, 178);
-    doc.setFont("helvetica", "normal");
-    let y = 188;
-    for (const [title, people] of [
-      ["Recollida", record.authorized_people || []],
-      ["Emergència", record.emergency_contacts || []],
-    ] as any[]) {
-      doc.setFont("helvetica", "bold");
-      doc.text(`${title}:`, margin, y);
-      y += 6;
-      doc.setFont("helvetica", "normal");
-      for (const person of people) {
-        doc.text(
-          `• ${person.name || "—"} · ${person.phone || "—"} · ${person.relation || "—"}`,
-          margin + 4,
-          y,
-        );
-        y += 5;
-      }
+    const logo = await imageData(AFA_LOGO);
+    const margin = 16;
+    pdfHeader(doc, logo, "FULL DE PREINSCRIPCIÓ", `${record.code} · ${String(record.created_at || new Date().toISOString()).slice(0, 10)}`);
+    const section = (title: string, y: number) => {
+      doc.setTextColor(91, 33, 182); doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.text(title, margin, y);
+      doc.setDrawColor(231, 228, 235); doc.line(margin, y + 3, 194, y + 3); return y + 12;
+    };
+    const line = (label: string, value: string, y: number) => {
+      doc.setTextColor(113, 107, 124); doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.text(label.toUpperCase(), margin, y);
+      doc.setTextColor(23, 19, 31); doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.text(String(value || "—"), margin + 38, y); return y + 8;
+    };
+    let y = 60;
+    y = section("DADES DE L’ALUMNE/A", y);
+    y = line("Nom", record.student_name, y); y = line("Naixement", record.birth_date, y); y = line("Activitat", record.activity_name, y); y = line("Curs / grup", `${record.course || "—"} · ${record.group_name || "—"}`, y);
+    y += 7; y = section("REPRESENTANT LEGAL", y);
+    y = line("Nom", record.representative_name, y); y = line("DNI / NIE", record.dni, y); y = line("Telèfon", record.phone, y); y = line("Correu", record.email, y);
+    y += 7; y = section("PERSONES AUTORITZADES I EMERGÈNCIES", y);
+    for (const [title, people] of [["Recollida", record.authorized_people || []], ["Emergència", record.emergency_contacts || []]] as any[]) {
+      const names = (people as any[]).map((person) => `${person.name || "—"} · ${person.phone || "—"} · ${person.relation || "—"}`).join("; ") || "No indicades";
+      y = line(title, names, y);
     }
-    doc.setFont("helvetica", "bold");
-    doc.text("Condicions", margin, y + 8);
-    doc.setFont("helvetica", "normal");
-    doc.text(
-      `Soci/a: ${record.is_member ? "Sí" : "No"} · Ordre germà/na: ${record.child_order || 1}`,
-      margin,
-      y + 18,
-    );
-    doc.text(
-      `Import estimat: ${money(record.total_amount)} · Estat: ${record.status || "—"}`,
-      margin,
-      y + 26,
-    );
-    doc.setFontSize(8);
-    doc.setTextColor(113, 107, 124);
-    doc.text(
-      "Document generat per ACTIVA’T · AFA Escola Sant Salvador · contacte@afaescolasantsalvador.org",
-      margin,
-      280,
-    );
+    if (y > 244) { doc.addPage(); y = 35; }
+    y += 7; y = section("CONDICIONS I ESTAT", y);
+    y = line("Soci/a", record.is_member ? "Sí" : "No", y); y = line("Ordre fill/a", String(record.child_order || 1), y); y = line("Import", money(record.total_amount), y); y = line("Estat", record.status, y); y = line("Plaça", record.place ? `#${record.place}` : "Pendent d’assignació", y);
+    if (record.signature_data) {
+      y += 8; y = section("SIGNATURA", y);
+      try { doc.addImage(record.signature_data, "PNG", margin, y, 58, 20); } catch { /* invalid signature data */ }
+    }
+    pdfFooter(doc, record.code);
     doc.save(`preinscripcio-${record.code}.pdf`);
   }
   return (
