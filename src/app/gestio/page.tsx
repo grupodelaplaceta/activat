@@ -112,7 +112,9 @@ function pdfFooter(doc: jsPDF, code: string) {
 }
 
 export default function Gestio() {
-  const [secret, setSecret] = useState("");
+  const [secret, setSecret] = useState(() =>
+    typeof window === "undefined" ? "" : sessionStorage.getItem("activat-admin-secret") || "",
+  );
   const [data, setData] = useState<any>();
   const [error, setError] = useState("");
   const [view, setView] = useState("Preinscripcions");
@@ -145,9 +147,11 @@ export default function Gestio() {
     });
     const json = await response.json();
     if (!response.ok) {
+      if (response.status === 401) sessionStorage.removeItem("activat-admin-secret");
       setError(json.error || "No autoritzat");
       return;
     }
+    sessionStorage.setItem("activat-admin-secret", secret);
     setData(json);
   }
   function open(record: any) {

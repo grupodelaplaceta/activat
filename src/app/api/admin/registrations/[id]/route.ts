@@ -32,21 +32,24 @@ export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}
     const merged={...current,...patch};
     if(action==='assign_place'||action==='waitlist'||action==='matriculate'){
       const activityId=merged.activity_id;
-      const activityQuery=activityId
-        ? sb.from('activities').select('id,name,capacity,capacity_override,vacancies_open').eq('id',activityId).single()
-        : sb.from('activities').select('id,name,capacity,capacity_override,vacancies_open').eq('name',merged.activity_name).single();
-      const {data:activity,error:activityError}=await activityQuery;
-      if(activityError||!activity) return NextResponse.json({error:'No s’ha trobat l’activitat d’aquest expedient.'},{status:409});
-      const {data:occupiedRows,error:occupiedError}=await sb.from('registrations').select('id,place,status').eq('activity_id',activity.id).in('status',['admesa','matriculada']).neq('id',id);
-      if(occupiedError) throw occupiedError;
+      const {data:activities,error:activitiesError}=await sb.from('activities').select('id,name,capacity,capacity_override,vacancies_open');
+      if(activitiesError) throw activitiesError;
+      const normalize=(value:string)=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+      const activity=(activities||[]).find((candidate:any)=>activityId?candidate.id===activityId:normalize(candidate.name)===normalize(merged.activity_name));
+      if(!activity) return NextResponse.json({error:`No s’ha trobat l’activitat “${merged.activity_name}”. Revisa el nom de l’activitat a Supabase.`},{status:409});
+      const byId=await sb.from('registrations').select('id,place,status').eq('activity_id',activity.id).in('status',['admesa','matriculada']).neq('id',id);
+      const byName=await sb.from('registrations').select('id,place,status').eq('activity_name',activity.name).in('status',['admesa','matriculada']).neq('id',id);
+      if(byId.error) throw byId.error;
+      if(byName.error) throw byName.error;
+      const occupiedRows=Array.from(new Map([...(byId.data||[]),...(byName.data||[])].map((row:any)=>[row.id,row])).values());
       const capacity=Number(activity.capacity_override??activity.capacity??0);
       if(action==='waitlist'){
         patch.status='llista d’espera';
         patch.place=null;
       }else{
         if(activity.vacancies_open===false) return NextResponse.json({error:'Les places d’aquesta activitat estan tancades.'},{status:409});
-        if(capacity>0&&(occupiedRows||[]).length>=capacity) return NextResponse.json({error:'No hi ha places disponibles. L’expedient s’ha de posar a la llista d’espera.'},{status:409});
-        const used=new Set((occupiedRows||[]).map((row:any)=>Number(row.place)).filter((place:number)=>Number.isInteger(place)&&place>0));
+        if(capacity>0&&occupiedRows.length>=capacity) return NextResponse.json({error:`No hi ha places disponibles per ${activity.name} (${capacity} places). L’expedient s’ha de posar a la llista d’espera.`},{status:409});
+        const used=new Set(occupiedRows.map((row:any)=>Number(row.place)).filter((place:number)=>Number.isInteger(place)&&place>0));
         let place=1; while(used.has(place)) place+=1;
         patch.place=place;
         patch.status=action==='matriculate'?'matriculada':'admesa';

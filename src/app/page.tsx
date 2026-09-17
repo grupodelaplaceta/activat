@@ -16,17 +16,14 @@ export default async function Home(){
       <div className="grid activityHomeGrid">{demoActivities.map(a=>{
         const price=Number(a.memberPrice ?? a.price ?? 0);
         const listPrice=Number(a.price ?? price ?? 0);
-        const pct=Math.round((a.occupied||0)/(a.capacity||1)*100); const highDemand=pct>=80;
         return <article className="card activityCard commercialActivity" key={a.id}>
           <div className="activityCover commercialCover" style={a.image?{backgroundImage:`url(${a.image})`}:undefined}>
             {!a.image && <div className="coverIllustration">◌</div>}
-            <span className="coverStatus">{a.capacity} places totals {highDemand?'· 🔥 Alta demanda':''}</span>
           </div>
           <div className="activityBody">
             <div className="organizer"><img src={a.organizerLogo} alt="" /><span>Organitzat per <b>{a.organizer}</b></span></div>
             <h2>{a.name}</h2><p className="muted">{a.description}</p>
             <div className="meta"><span>⌚ {a.schedule}</span><span>👥 {a.courses}</span></div>
-            <div className="capacity"><div className="capacityHead"><span>{a.capacity} places totals</span><b className={highDemand?'highDemand':''}>{highDemand?'🔥 Alta demanda':'Places oberbes'}</b></div><div className="bar"><i style={{width:`${pct}%`}}/></div></div>
             <div className="row space activityFooter">
               <div>
                 <strong>{Number(price||listPrice).toFixed(2).replace('.',',')} €</strong>
