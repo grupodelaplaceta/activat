@@ -4,7 +4,7 @@ import {adminSupabase} from '@/lib/supabase';
 export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}>}){
   if(req.headers.get('x-activat-admin-secret')!==process.env.ACTIVAT_ADMIN_SECRET)return NextResponse.json({error:'No autoritzat.'},{status:401});
   const {id}=await params; const body=await req.json();
-  const allowed=['student_name','birth_date','allergies','nese','nese_detail','representative_name','dni','phone','email','address','city','postal_code','authorized_people','emergency_contacts','payment_method','paid_amount','signature_data','legal_acceptances','rules_accepted','outing_accepted','data_info_accepted','emergency_accepted','image_consent','course','group_name','is_member','registered_children_count','child_order','member_discount_amount','sibling_discount_amount','discount_amount','discount_label','status','special_tariff_enabled','special_tariff_amount','special_tariff_label','payment_date','mark_paid'];
+  const allowed=['student_name','birth_date','allergies','nese','nese_detail','representative_name','dni','phone','email','address','city','postal_code','authorized_people','emergency_contacts','payment_method','paid_amount','signature_data','legal_acceptances','start_month','rules_accepted','outing_accepted','data_info_accepted','emergency_accepted','image_consent','course','group_name','is_member','registered_children_count','child_order','member_discount_amount','sibling_discount_amount','discount_amount','discount_label','status','special_tariff_enabled','special_tariff_amount','special_tariff_label','payment_date','mark_paid'];
   const patch:any={}; for(const k of allowed) if(body[k]!==undefined) patch[k]=body[k];
   if(patch.is_member!==undefined) patch.is_member=Boolean(patch.is_member);
   if(patch.registered_children_count!==undefined) patch.registered_children_count=Math.max(1,Number(patch.registered_children_count));
@@ -26,6 +26,7 @@ export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}
     patch.discount_amount=Math.max(0,Number(merged.member_discount_amount||0)+Number(merged.sibling_discount_amount||0));
     if(markPaid) patch.paid_amount=patch.total_amount;
     if(patch.paid_amount!==undefined&&patch.paid_amount>0&&patch.payment_date===undefined){patch.payment_date=new Date().toISOString().slice(0,10);patch.status='Pendent d’assignació de plaça';}
+    if(!merged.start_month&&(markPaid||Number(patch.paid_amount||0)>0)){patch.start_month=(patch.payment_date||new Date().toISOString()).slice(0,7);}
     const {data,error}=await sb.from('registrations').update(patch).eq('id',id).select('*').single();if(error)throw error;
     if(Array.isArray(body.fees)){
       let {data:enrollment,error:enrollmentError}=await sb.from('enrollments').select('id').eq('registration_id',id).maybeSingle();
@@ -38,5 +39,5 @@ export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}
       }
     }
     return NextResponse.json({...data,fees:body.fees||[]})
-  }catch{return NextResponse.json({error:'No s’ha pogut actualitzar l’expedient.'},{status:500})}
+  }catch(error){console.error('admin registration update failed',error);const details=error&&typeof error==='object'&&'message' in error?String((error as {message:string}).message):'';return NextResponse.json({error:'No s’ha pogut actualitzar l’expedient. Revisa que Supabase tingui aplicades les últimes migracions.',details:process.env.NODE_ENV==='development'?details:undefined},{status:500})}
 }
