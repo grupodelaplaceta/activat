@@ -16,6 +16,8 @@ export default function RootLayout({children}:{children:React.ReactNode}){
           <span className="brandLogo"><img src={AFA_LOGO} alt="AFA Escola Sant Salvador" /></span>
           <span className="brandText"><strong>ACTIVA’T</strong><small>Secretaria Virtual · AFA Escola Sant Salvador</small></span>
         </Link>
+        <input className="navToggle" type="checkbox" id="nav-toggle" />
+        <label className="navMenuButton" htmlFor="nav-toggle" aria-label="Obrir el menú"><span></span><span></span><span></span></label>
         <div className="navlinks">
           <Link href="/activitats">Activitats</Link>
           <Link href="/consulta">Consultar gestió</Link>
