@@ -6,8 +6,8 @@ const BANNER_VIDEO='https://www.youtube.com/embed/_6yDqoU7yWk?autoplay=1&mute=1&
 export default async function Fitxa({params}:{params:Promise<{slug:string}>}){
   const {slug}=await params;
   const a=demoActivities.find(x=>x.slug===slug)||demoActivities[0];
-  const free=Math.max(0,a.capacity-a.occupied);
   const pct=Math.min(100,Math.round(a.occupied/a.capacity*100));
+  const highDemand=pct>=80;
   const isRob=a.name.toLowerCase().includes('rob');
   const memberSave=Math.max(0,a.price-a.memberPrice);
   const hasSibling=Number(a.secondChildDiscount||0)>0;
@@ -19,7 +19,7 @@ export default async function Fitxa({params}:{params:Promise<{slug:string}>}){
         <div className="detailBannerTop"><span className="bannerBadge">ACTIVA’T · Curs 2026–2027</span><span className="bannerBadge">AFA Escola Sant Salvador</span></div>
         <h1>{a.name}</h1>
         <p>{a.description}</p>
-        <div className="detailBannerFacts"><span>⌚ {a.schedule}</span><span>👥 {a.courses}</span><span>● {free} places disponibles</span></div>
+        <div className="detailBannerFacts"><span>⌚ {a.schedule}</span><span>👥 {a.courses}</span><span>{a.capacity} places totals</span>{highDemand&&<span className="demandFact">🔥 Alta demanda</span>}</div>
       </div>
     </section>
 
@@ -43,7 +43,7 @@ export default async function Fitxa({params}:{params:Promise<{slug:string}>}){
           <div className="detailInfoGrid">
             <div className="infoTile"><span>HORARI</span><strong>{a.schedule}</strong></div>
             <div className="infoTile"><span>CURSOS</span><strong>{a.courses}</strong></div>
-            <div className="infoTile"><span>PLACES</span><strong>{a.capacity} places</strong><small>{free} disponibles actualment</small></div>
+            <div className="infoTile"><span>PLACES</span><strong>{a.capacity} places totals</strong><small>{highDemand?'🔥 Alta demanda':'Places obertes'}</small></div>
             <div className="infoTile"><span>ORGANITZA</span><strong>{a.organizer}</strong></div>
           </div>
 
@@ -72,7 +72,7 @@ export default async function Fitxa({params}:{params:Promise<{slug:string}>}){
           <div className="section detailSection">
             <span className="eyebrow">Places</span>
             <h2>Situació actual</h2>
-            <div className="capacityHead"><span>{a.occupied} de {a.capacity} places ocupades</span><b>{free} disponibles</b></div>
+            <div className="capacityHead"><span>{a.capacity} places totals</span><b>{highDemand?'🔥 Alta demanda':'Places obertes'}</b></div>
             <div className="bar detailBar"><i style={{width:`${pct}%`}}/></div>
             <p className="muted small">La disponibilitat pot canviar mentre es processen les preinscripcions i els pagaments.</p>
           </div>
@@ -87,7 +87,7 @@ export default async function Fitxa({params}:{params:Promise<{slug:string}>}){
 
       <aside className="card sideCard detailSideCard">
         <span className="eyebrow">Preinscripció</span>
-        <div className="sideAvailability"><strong>{free}</strong><span>places<br/>disponibles</span></div>
+        <div className="sideAvailability"><strong>{a.capacity}</strong><span>places<br/>totals</span></div>{highDemand&&<div className="demandNotice">🔥 Alta demanda</div>}
         <div className="bar"><i style={{width:`${pct}%`}}/></div>
         <div className="sidePrice"><small>Des de</small><strong>{a.price.toFixed(2).replace('.',',')} €</strong><span>Quota general</span></div>
         <div className="sidePriceAlt"><b>{a.memberPrice.toFixed(2).replace('.',',')} €</b><span>per a socis AFA</span></div>
