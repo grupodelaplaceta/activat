@@ -53,11 +53,15 @@ export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}
         patch.status='llista d’espera';
         patch.place=null;
       }else{
-        if(capacity>0&&occupiedRows.length>=capacity) return NextResponse.json({error:`No hi ha places disponibles per ${activity.name} (${capacity} places). L’expedient s’ha de posar a la llista d’espera.`},{status:409});
-        const used=new Set(occupiedRows.map((row:any)=>Number(row.place)).filter((place:number)=>Number.isInteger(place)&&place>0));
-        let place=1; while(used.has(place)) place+=1;
-        patch.place=place;
-        patch.status=action==='matriculate'?'matriculada':'admesa';
+        if(capacity>0&&occupiedRows.length>=capacity){
+          patch.place=null;
+          patch.status='llista d’espera';
+        }else{
+          const used=new Set(occupiedRows.map((row:any)=>Number(row.place)).filter((place:number)=>Number.isInteger(place)&&place>0));
+          let place=1; while(used.has(place)) place+=1;
+          patch.place=place;
+          patch.status=action==='matriculate'?'matriculada':'admesa';
+        }
       }
       patch.activity_id=activity.id;
     }
@@ -85,16 +89,16 @@ export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}
     if(error)throw error;
 
     if(action==='assign_place'||action==='waitlist'||action==='matriculate'){
-      const enrollmentStatus=action==='matriculate'?'activa':action==='waitlist'?'llista d’espera':'pendent';
+      const enrollmentStatus=!data.place?'llista d’espera':action==='matriculate'?'activa':'pendent';
       const enrollmentPatch={activity_id:data.activity_id,status:enrollmentStatus,enrolled_at:action==='matriculate'?new Date().toISOString():null};
-      const existingEnrollment=await sb.from('enrollments').select('id').eq('registration_id',id).maybeSingle();
+      const existingEnrollment=await sb.from('enrollments').select('id').eq('registration_id',id).order('created_at',{ascending:true}).limit(1).maybeSingle();
       if(existingEnrollment.error) throw existingEnrollment.error;
       const enrollment=existingEnrollment.data
         ? (await sb.from('enrollments').update(enrollmentPatch).eq('id',existingEnrollment.data.id).select('id').single()).data
         : (await sb.from('enrollments').insert({registration_id:id,...enrollmentPatch}).select('id').single()).data;
       if(!enrollment) throw new Error('No s’ha pogut crear la matrícula.');
-      const {error:movementError}=await sb.from('place_movements').insert({activity_id:data.activity_id,registration_id:id,movement_type:action,from_status:current.status,to_status:data.status,quantity:action==='waitlist'?0:1,reason:body.reason||null});
-      if(movementError) throw movementError;
+      const {error:movementError}=await sb.from('place_movements').insert({activity_id:data.activity_id,registration_id:id,movement_type:action,from_status:current.status,to_status:data.status,quantity:data.place?1:0,reason:body.reason||null});
+      if(movementError) console.warn('place movement could not be recorded',movementError);
       if(Array.isArray(body.fees)&&enrollment) body.enrollment_id=enrollment.id;
     }
 
