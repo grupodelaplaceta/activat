@@ -19,16 +19,16 @@ export default function RootLayout({children}:{children:React.ReactNode}){
         <input className="navToggle" type="checkbox" id="nav-toggle" />
         <label className="navMenuButton" htmlFor="nav-toggle" aria-label="Obrir el menú"><span></span><span></span><span></span></label>
         <div className="navlinks">
-          <Link href="/activitats">Activitats</Link>
-          <Link href="/consulta">Consultar gestió</Link>
-          <Link className="navCta" href="/gestio">Secretaria <span>↗</span></Link>
+          <Link href="/activitats">Veure activitats</Link>
+          <Link href="/consulta">Consultar o actualitzar</Link>
+          <Link className="navCta" href="/gestio">Accés Secretaria <span>↗</span></Link>
         </div>
       </nav>
     </header>
     {children}
     <footer className="footer">
       <div><strong>ACTIVA’T</strong><span> · Secretaria Virtual de l’AFA Escola Sant Salvador</span></div>
-      <div><Link href="/legal">Normes · Pagaments · Termes · Privacitat</Link></div>
+      <div><Link href="/legal">Informació legal: normes, pagaments, termes i privacitat</Link></div>
     </footer>
   </>
 }
