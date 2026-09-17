@@ -1,9 +1,11 @@
 import Link from 'next/link';
-import {demoActivities, AFA_LOGO} from '@/lib/demo';
+import {AFA_LOGO} from '@/lib/demo';
+import {getActivities} from '@/lib/activities';
 
 const BANNER_VIDEO='https://www.youtube.com/embed/_6yDqoU7yWk?autoplay=1&mute=1&controls=0&loop=1&playlist=_6yDqoU7yWk&playsinline=1&modestbranding=1&rel=0';
 
-export default function Home(){
+export default async function Home(){
+  const demoActivities=await getActivities();
   return <main className="container homeCommercial">
     <section className="brandBanner homeVideoBanner">
       <iframe src={BANNER_VIDEO} title="Vídeo de l'AFA Escola Sant Salvador" allow="autoplay; encrypted-media" aria-hidden="true" />

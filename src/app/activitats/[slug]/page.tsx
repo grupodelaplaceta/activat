@@ -1,11 +1,12 @@
 import Link from 'next/link';
-import {demoActivities} from '@/lib/demo';
+import {getActivities} from '@/lib/activities';
 
 const BANNER_VIDEO='https://www.youtube.com/embed/_6yDqoU7yWk?autoplay=1&mute=1&controls=0&loop=1&playlist=_6yDqoU7yWk&playsinline=1&modestbranding=1&rel=0&disablekb=1&enablejsapi=1';
 
 export default async function Fitxa({params}:{params:Promise<{slug:string}>}){
   const {slug}=await params;
-  const a=demoActivities.find(x=>x.slug===slug)||demoActivities[0];
+  const activities=await getActivities();
+  const a=activities.find((x:any)=>x.slug===slug)||activities[0];
   const pct=Math.min(100,Math.round(a.occupied/a.capacity*100));
   const highDemand=pct>=80;
   const isRob=a.name.toLowerCase().includes('rob');
