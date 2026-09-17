@@ -55,8 +55,12 @@ export async function POST(req:Request){
   } as any;
 
   try{
+    if(!process.env.NEXT_PUBLIC_SUPABASE_URL||!process.env.SUPABASE_SERVICE_ROLE_KEY){
+      return NextResponse.json({error:'Falten NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY a la configuració del servidor.'},{status:500});
+    }
     const sb=adminSupabase();
-    const {data:activities}=await sb.from('activities').select('id,name,slug').eq('active',true);
+    const {data:activities,error:activityError}=await sb.from('activities').select('id,name,slug').eq('active',true);
+    if(activityError) console.warn('activity lookup failed during registration',activityError);
     const matchedActivity=(activities||[]).find((activity:any)=>
       activity.name===f.activitat || activity.slug===String(f.activitat).toLowerCase().replace(/\s+/g,'-')
     );
@@ -71,9 +75,11 @@ export async function POST(req:Request){
   }catch(error){
     console.error('public registration insert failed',error);
     const details=error&&typeof error==='object'&&'message' in error?String((error as {message:string}).message):'';
+    const code=error&&typeof error==='object'&&'code' in error?String((error as {code:string}).code):'';
     return NextResponse.json({
       error:'No s’ha pogut desar la preinscripció. Revisa la connexió amb Supabase i que el schema estigui aplicat.',
-      details:process.env.NODE_ENV==='development'?details:undefined,
+      code:code||undefined,
+      details:details||undefined,
     },{status:500});
   }
 }
