@@ -170,6 +170,27 @@ export default function Gestio() {
       ),
     }));
   }
+  async function markFeePaid(fee: any, index: number) {
+    if (!fee.id) {
+      setError("Desa primer les quotes generades per poder registrar el pagament.");
+      return;
+    }
+    const response = await fetch("/api/admin/fees", {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        "x-activat-admin-secret": secret,
+      },
+      body: JSON.stringify({ id: fee.id, status: "pagada" }),
+    });
+    const json = await response.json();
+    if (!response.ok) {
+      setError(json.error || "No s’ha pogut registrar la quota.");
+      return;
+    }
+    setFee(index, "status", json.status);
+    setFee(index, "paid_at", json.paid_at);
+  }
   function generateFees() {
     setSelected((current: any) => {
       const startMonth =
@@ -368,18 +389,14 @@ export default function Gestio() {
       };
     });
   }, [data]);
-  async function receipt(record: any) {
+  async function receipt(record: any, fee: any) {
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     const logo = await imageData(AFA_LOGO);
-    const received = Number(record.paid_amount || 0);
-    const total = Number(record.total_amount || 0);
-    const change = Math.max(0, received - total);
-    const today = new Date().toISOString().slice(0, 10);
-    const deadline = record.start_month
-      ? dueDate(record.start_month)
-      : dueDate(months[0]);
-    const late = record.payment_date && record.payment_date > deadline;
-    pdfHeader(doc, logo, "REBUT DE PAGAMENT", `Justificant ${record.code} · ${record.payment_date || today}`);
+    const amount = Number(fee.total || fee.amount || 0);
+    const paidAt = fee.paid_at || new Date().toISOString().slice(0, 10);
+    const deadline = fee.due_date || dueDate(String(fee.month).slice(0, 7));
+    const late = paidAt > deadline;
+    pdfHeader(doc, logo, "REBUT DE QUOTA MENSUAL", `Justificant ${record.code} · ${String(fee.month).slice(0, 7)}`);
     doc.setFillColor(243, 237, 255);
     doc.roundedRect(16, 57, 178, 42, 4, 4, "F");
     doc.setTextColor(23, 19, 31);
@@ -395,14 +412,14 @@ export default function Gestio() {
     doc.setTextColor(23, 19, 31);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
-    doc.text("Import de la quota", 16, 119);
-    doc.text("Import rebut", 16, 131);
-    doc.text("Canvi", 16, 143);
+    doc.text("Període", 16, 119);
+    doc.text("Quota mensual", 16, 131);
+    doc.text("Pagada el", 16, 143);
     doc.setTextColor(91, 33, 182);
     doc.setFontSize(13);
-    doc.text(money(total), 194, 119, { align: "right" });
-    doc.text(money(received), 194, 131, { align: "right" });
-    doc.text(money(change), 194, 143, { align: "right" });
+    doc.text(String(fee.month).slice(0, 7), 194, 119, { align: "right" });
+    doc.text(money(amount), 194, 131, { align: "right" });
+    doc.text(String(paidAt).slice(0, 10), 194, 143, { align: "right" });
     doc.setDrawColor(231, 228, 235);
     doc.line(16, 151, 194, 151);
     doc.setTextColor(113, 107, 124);
@@ -415,7 +432,7 @@ export default function Gestio() {
       doc.text("AVÍS: pagament registrat fora de termini.", 16, 173);
     }
     pdfFooter(doc, record.code);
-    doc.save(`rebut-${record.code}.pdf`);
+    doc.save(`rebut-${record.code}-${String(fee.month).slice(0, 7)}.pdf`);
   }
   if (!data)
     return (
@@ -982,12 +999,6 @@ export default function Gestio() {
                       Import rebut i canvi calculat per Secretaria.
                     </small>
                   </div>
-                  <button
-                    className="btn secondary"
-                    onClick={() => receipt(selected)}
-                  >
-                    Generar rebut PDF
-                  </button>
                 </div>
                 <div className="detailGrid">
                   <div className="detailItem">
@@ -1127,6 +1138,16 @@ export default function Gestio() {
                     >
                       {fee.status === "Nula" ? "Reactivar" : "Nula"}
                     </button>
+                    {fee.status !== "Nula" && fee.status !== "pagada" && (
+                      <button className="btn secondary" onClick={() => markFeePaid(fee, index)}>
+                        Marcar pagada
+                      </button>
+                    )}
+                    {fee.status === "pagada" && (
+                      <button className="btn primary" onClick={() => receipt(selected, fee)}>
+                        Rebut PDF
+                      </button>
+                    )}
                   </div>
                 ))}
               </section>
