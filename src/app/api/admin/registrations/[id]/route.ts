@@ -91,12 +91,22 @@ export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}
     if(action==='assign_place'||action==='waitlist'||action==='matriculate'){
       const enrollmentStatus=!data.place?'llista d’espera':action==='matriculate'?'activa':'pendent';
       const enrollmentPatch={activity_id:data.activity_id,status:enrollmentStatus,enrolled_at:action==='matriculate'?new Date().toISOString():null};
-      const existingEnrollment=await sb.from('enrollments').select('id').eq('registration_id',id).order('created_at',{ascending:true}).limit(1).maybeSingle();
-      if(existingEnrollment.error) throw existingEnrollment.error;
-      const enrollment=existingEnrollment.data
-        ? (await sb.from('enrollments').update(enrollmentPatch).eq('id',existingEnrollment.data.id).select('id').single()).data
-        : (await sb.from('enrollments').insert({registration_id:id,...enrollmentPatch}).select('id').single()).data;
-      if(!enrollment) throw new Error('No s’ha pogut crear la matrícula.');
+      let enrollment:any;
+      try{
+        const existingEnrollment=await sb.from('enrollments').select('id').eq('registration_id',id).order('created_at',{ascending:true}).limit(1).maybeSingle();
+        if(existingEnrollment.error) throw existingEnrollment.error;
+        if(existingEnrollment.data){
+          const updatedEnrollment=await sb.from('enrollments').update(enrollmentPatch).eq('id',existingEnrollment.data.id).select('id').single();
+          if(updatedEnrollment.error) throw updatedEnrollment.error;
+          enrollment=updatedEnrollment.data;
+        }else{
+          const createdEnrollment=await sb.from('enrollments').insert({registration_id:id,...enrollmentPatch}).select('id').single();
+          if(createdEnrollment.error) throw createdEnrollment.error;
+          enrollment=createdEnrollment.data;
+        }
+      }catch(enrollmentError){
+        console.error('enrollment sync failed after registration update',enrollmentError);
+      }
       const {error:movementError}=await sb.from('place_movements').insert({activity_id:data.activity_id,registration_id:id,movement_type:action,from_status:current.status,to_status:data.status,quantity:data.place?1:0,reason:body.reason||null});
       if(movementError) console.warn('place movement could not be recorded',movementError);
       if(Array.isArray(body.fees)&&enrollment) body.enrollment_id=enrollment.id;
@@ -132,7 +142,7 @@ export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}
     const details = error && typeof error === 'object' && 'message' in error ? String((error as {message:string}).message) : '';
     return NextResponse.json({
       error:'No s’ha pogut actualitzar l’expedient. Revisa que Supabase tingui aplicades les últimes migracions.',
-      details: process.env.NODE_ENV === 'development' ? details : undefined,
+      details: details || undefined,
     }, {status:500});
   }
 }
