@@ -37,6 +37,12 @@ export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}
       const normalize=(value:string)=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
       const activity=(activities||[]).find((candidate:any)=>activityId?candidate.id===activityId:normalize(candidate.name)===normalize(merged.activity_name));
       if(!activity) return NextResponse.json({error:`No s’ha trobat l’activitat “${merged.activity_name}”. Revisa el nom de l’activitat a Supabase.`},{status:409});
+      if((action==='assign_place'||action==='matriculate')&&['admesa','matriculada'].includes(String(current.status||'').toLowerCase())&&current.place){
+        return NextResponse.json({...current,fees:body.fees||[]});
+      }
+      if(action==='waitlist'&&String(current.status||'').toLowerCase()==='llista d’espera'&&!current.place){
+        return NextResponse.json({...current,fees:body.fees||[]});
+      }
       const byId=await sb.from('registrations').select('id,place,status').eq('activity_id',activity.id).in('status',['admesa','matriculada']).neq('id',id);
       const byName=await sb.from('registrations').select('id,place,status').eq('activity_name',activity.name).in('status',['admesa','matriculada']).neq('id',id);
       if(byId.error) throw byId.error;
@@ -47,7 +53,6 @@ export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}
         patch.status='llista d’espera';
         patch.place=null;
       }else{
-        if(activity.vacancies_open===false) return NextResponse.json({error:'Les places d’aquesta activitat estan tancades.'},{status:409});
         if(capacity>0&&occupiedRows.length>=capacity) return NextResponse.json({error:`No hi ha places disponibles per ${activity.name} (${capacity} places). L’expedient s’ha de posar a la llista d’espera.`},{status:409});
         const used=new Set(occupiedRows.map((row:any)=>Number(row.place)).filter((place:number)=>Number.isInteger(place)&&place>0));
         let place=1; while(used.has(place)) place+=1;

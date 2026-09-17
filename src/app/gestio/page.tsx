@@ -122,6 +122,7 @@ export default function Gestio() {
   const [status, setStatus] = useState("Tots");
   const [selected, setSelected] = useState<any>();
   const [saving, setSaving] = useState(false);
+  const [placementBusy, setPlacementBusy] = useState("");
   const [commActivity, setCommActivity] = useState("Totes");
   const [commStatus, setCommStatus] = useState("Tots");
   const [commCourse, setCommCourse] = useState("Tots");
@@ -279,28 +280,34 @@ export default function Gestio() {
     setSelected({ ...json, fees: json.fees || selected.fees });
   }
   async function placementAction(record: any, action: "assign_place" | "matriculate" | "waitlist") {
+    if (placementBusy === record.id) return;
     setError("");
-    const response = await fetch(`/api/admin/registrations/${record.id}`, {
-      method: "PATCH",
-      headers: {
-        "content-type": "application/json",
-        "x-activat-admin-secret": secret,
-      },
-      body: JSON.stringify({ action }),
-    });
-    const json = await response.json();
-    if (!response.ok) {
-      setError(json.error || "No s’ha pogut actualitzar la plaça.");
-      return;
-    }
-    setData((current: any) => ({
-      ...current,
-      registrations: current.registrations.map((item: any) =>
-        item.id === json.id ? { ...item, ...json } : item,
-      ),
-    }));
-    if (selected?.id === record.id) {
-      setSelected({ ...json, fees: json.fees || selected.fees || [] });
+    setPlacementBusy(record.id);
+    try {
+      const response = await fetch(`/api/admin/registrations/${record.id}`, {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          "x-activat-admin-secret": secret,
+        },
+        body: JSON.stringify({ action }),
+      });
+      const json = await response.json();
+      if (!response.ok) {
+        setError(json.error || "No s’ha pogut actualitzar la plaça.");
+        return;
+      }
+      setData((current: any) => ({
+        ...current,
+        registrations: current.registrations.map((item: any) =>
+          item.id === json.id ? { ...item, ...json } : item,
+        ),
+      }));
+      if (selected?.id === record.id) {
+        setSelected({ ...json, fees: json.fees || selected.fees || [] });
+      }
+    } finally {
+      setPlacementBusy("");
     }
   }
   async function downloadList(format: "csv" | "pdf") {
@@ -829,13 +836,13 @@ export default function Gestio() {
                         <div className="row" style={{ flexWrap: "wrap" }}>
                           <button className="btn secondary" onClick={() => open(record)}>Obrir</button>
                           {!["admesa", "matriculada", "eliminada"].includes(String(record.status || "").toLowerCase()) && (
-                            <button className="btn primary" onClick={() => placementAction(record, "assign_place")}>Assignar</button>
+                            <button className="btn primary" disabled={placementBusy === record.id} onClick={() => placementAction(record, "assign_place")}>{placementBusy === record.id ? "Assignant…" : "Assignar"}</button>
                           )}
                           {String(record.status || "").toLowerCase() === "admesa" && (
-                            <button className="btn primary" onClick={() => placementAction(record, "matriculate")}>Matricular</button>
+                            <button className="btn primary" disabled={placementBusy === record.id} onClick={() => placementAction(record, "matriculate")}>{placementBusy === record.id ? "Desant…" : "Matricular"}</button>
                           )}
                           {String(record.status || "").toLowerCase() !== "llista d’espera" && !["admesa", "matriculada", "eliminada"].includes(String(record.status || "").toLowerCase()) && (
-                            <button className="btn secondary" onClick={() => placementAction(record, "waitlist")}>Espera</button>
+                            <button className="btn secondary" disabled={placementBusy === record.id} onClick={() => placementAction(record, "waitlist")}>Espera</button>
                           )}
                         </div>
                       </td>
