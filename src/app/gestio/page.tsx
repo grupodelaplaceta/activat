@@ -1,6 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
 import { jsPDF } from "jspdf";
+import { useOutfit } from "@/lib/pdf-font";
 
 const AFA_LOGO = "https://i.postimg.cc/02cV2JFP/www-afaescolasantsalvador-org.png";
 
@@ -78,21 +79,21 @@ function pdfHeader(doc: jsPDF, logo: string, title: string, subtitle: string) {
     try { doc.addImage(logo, "PNG", 16, 5, 22, 15); } catch { /* logo is optional */ }
   }
   doc.setTextColor(23, 19, 31);
-  doc.setFont("helvetica", "bold");
+  doc.setFont("Outfit", "bold");
   doc.setFontSize(14);
   doc.text("AFA Escola Sant Salvador", 44, 12);
-  doc.setFont("helvetica", "normal");
+  doc.setFont("Outfit", "normal");
   doc.setFontSize(7.5);
   doc.setTextColor(113, 107, 124);
   doc.text("ACTIVA’T · Secretaria Virtual · Curs 2026–2027", 44, 18);
   doc.setDrawColor(231, 228, 235);
   doc.line(16, 25, 194, 25);
   doc.setTextColor(91, 33, 182);
-  doc.setFont("helvetica", "bold");
+  doc.setFont("Outfit", "bold");
   doc.setFontSize(17);
   doc.text(title, 16, 39);
   doc.setTextColor(113, 107, 124);
-  doc.setFont("helvetica", "normal");
+  doc.setFont("Outfit", "normal");
   doc.setFontSize(9);
   doc.text(subtitle, 16, 46);
 }
@@ -104,7 +105,7 @@ function pdfFooter(doc: jsPDF, code: string) {
     doc.setDrawColor(231, 228, 235);
     doc.line(16, 286, 194, 286);
     doc.setTextColor(113, 107, 124);
-    doc.setFont("helvetica", "normal");
+    doc.setFont("Outfit", "normal");
     doc.setFontSize(7);
     doc.text(`ACTIVA’T · AFA Escola Sant Salvador · ${code}`, 16, 292);
     doc.text(`Pàgina ${page}/${pages}`, 194, 292, { align: "right" });
@@ -320,11 +321,12 @@ export default function Gestio() {
       return;
     }
     const doc = new jsPDF({ unit: "mm", format: "a4" });
+    await useOutfit(doc);
     const logo = await imageData(AFA_LOGO);
     pdfHeader(doc, logo, `LLISTA · ${title.toUpperCase()}`, `Generada el ${new Date().toLocaleDateString("ca-ES")}`);
     let y = 60;
-    doc.setTextColor(23, 19, 31); doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.text("Resum per activitat", 16, y);
-    doc.setFont("helvetica", "normal"); doc.setFontSize(8.5); y += 7;
+    doc.setTextColor(23, 19, 31); doc.setFont("Outfit", "bold"); doc.setFontSize(11); doc.text("Resum per activitat", 16, y);
+    doc.setFont("Outfit", "normal"); doc.setFontSize(8.5); y += 7;
     activityStats.forEach((activity: any) => {
       const limit = Number(activity.capacity_override ?? activity.capacity ?? 0);
       const occupied = Number(activity.occupied || 0);
@@ -333,11 +335,11 @@ export default function Gestio() {
       y += 5;
     });
     y += 8;
-    doc.setTextColor(91, 33, 182); doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.text(`${rows.length} expedients en aquesta llista`, 16, y); y += 10;
+    doc.setTextColor(91, 33, 182); doc.setFont("Outfit", "bold"); doc.setFontSize(10); doc.text(`${rows.length} expedients en aquesta llista`, 16, y); y += 10;
     rows.forEach((record: any, index: number) => {
       if (y > 275) { doc.addPage(); pdfHeader(doc, logo, `LLISTA · ${title.toUpperCase()}`, `Continuació · ${new Date().toLocaleDateString("ca-ES")}`); y = 60; }
-      doc.setFont("helvetica", "bold"); doc.text(`${index + 1}. ${record.student_name || "—"}`, 16, y);
-      doc.setFont("helvetica", "normal"); doc.text(`${record.code} · ${record.activity_name} · ${record.status}${record.place ? ` · plaça ${record.place}` : ""}`, 22, y + 5);
+      doc.setFont("Outfit", "bold"); doc.text(`${index + 1}. ${record.student_name || "—"}`, 16, y);
+      doc.setFont("Outfit", "normal"); doc.text(`${record.code} · ${record.activity_name} · ${record.status}${record.place ? ` · plaça ${record.place}` : ""}`, 22, y + 5);
       y += 13;
     });
     pdfFooter(doc, title);
@@ -413,6 +415,7 @@ export default function Gestio() {
   }, [data]);
   async function receipt(record: any, fee: any) {
     const doc = new jsPDF({ unit: "mm", format: "a4" });
+    await useOutfit(doc);
     const logo = await imageData(AFA_LOGO);
     const amount = Number(fee.total || fee.amount || 0);
     const paidAt = fee.paid_at || new Date().toISOString().slice(0, 10);
@@ -422,10 +425,10 @@ export default function Gestio() {
     doc.setFillColor(243, 237, 255);
     doc.roundedRect(16, 57, 178, 42, 4, 4, "F");
     doc.setTextColor(23, 19, 31);
-    doc.setFont("helvetica", "bold");
+    doc.setFont("Outfit", "bold");
     doc.setFontSize(11);
     doc.text(record.student_name || "Alumne/a", 23, 68);
-    doc.setFont("helvetica", "normal");
+    doc.setFont("Outfit", "normal");
     doc.setFontSize(9);
     doc.setTextColor(113, 107, 124);
     doc.text(`Representant: ${record.representative_name || "—"}`, 23, 76);
@@ -433,7 +436,7 @@ export default function Gestio() {
     doc.text(`Concepte: Quota ${String(fee.month).slice(0, 7)}${Number(fee.total || 0) > Number(fee.amount || 0) ? " + material del primer mes" : ""}`, 23, 92);
     doc.text(`Mitjà de pagament: ${record.payment_method || "Efectiu"}`, 23, 100);
     doc.setTextColor(23, 19, 31);
-    doc.setFont("helvetica", "bold");
+    doc.setFont("Outfit", "bold");
     doc.setFontSize(11);
     doc.text("Període", 16, 127);
     doc.text("Quota mensual", 16, 139);
@@ -446,12 +449,12 @@ export default function Gestio() {
     doc.setDrawColor(231, 228, 235);
     doc.line(16, 159, 194, 159);
     doc.setTextColor(113, 107, 124);
-    doc.setFont("helvetica", "normal");
+    doc.setFont("Outfit", "normal");
     doc.setFontSize(9);
     doc.text(`Data límit del període: ${deadline}`, 16, 170);
     if (late) {
       doc.setTextColor(161, 33, 33);
-      doc.setFont("helvetica", "bold");
+      doc.setFont("Outfit", "bold");
       doc.text("AVÍS: pagament registrat fora de termini.", 16, 181);
     }
     pdfFooter(doc, record.code);
@@ -507,16 +510,17 @@ export default function Gestio() {
   };
   async function registrationPdf(record: any) {
     const doc = new jsPDF({ unit: "mm", format: "a4" });
+    await useOutfit(doc);
     const logo = await imageData(AFA_LOGO);
     const margin = 16;
     pdfHeader(doc, logo, "FULL DE PREINSCRIPCIÓ", `${record.code} · ${String(record.created_at || new Date().toISOString()).slice(0, 10)}`);
     const section = (title: string, y: number) => {
-      doc.setTextColor(91, 33, 182); doc.setFont("helvetica", "bold"); doc.setFontSize(11); doc.text(title, margin, y);
+      doc.setTextColor(91, 33, 182); doc.setFont("Outfit", "bold"); doc.setFontSize(11); doc.text(title, margin, y);
       doc.setDrawColor(231, 228, 235); doc.line(margin, y + 3, 194, y + 3); return y + 12;
     };
     const line = (label: string, value: string, y: number) => {
-      doc.setTextColor(113, 107, 124); doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.text(label.toUpperCase(), margin, y);
-      doc.setTextColor(23, 19, 31); doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.text(String(value || "—"), margin + 38, y); return y + 8;
+      doc.setTextColor(113, 107, 124); doc.setFont("Outfit", "bold"); doc.setFontSize(8); doc.text(label.toUpperCase(), margin, y);
+      doc.setTextColor(23, 19, 31); doc.setFont("Outfit", "normal"); doc.setFontSize(9); doc.text(String(value || "—"), margin + 38, y); return y + 8;
     };
     let y = 60;
     y = section("DADES DE L’ALUMNE/A", y);

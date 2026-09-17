@@ -2,6 +2,7 @@
 import {useEffect,useMemo,useRef,useState} from 'react';
 import {jsPDF} from 'jspdf';
 import ReactMarkdown from 'react-markdown';
+import {useOutfit} from '@/lib/pdf-font';
 
 type F=Record<string,any>;
 type LegalDocument={id:string,title:string,text:string};
@@ -61,13 +62,14 @@ export default function Preinscripcio(){
  async function pdf(){
   if(!sent)return;
   const d=new jsPDF({unit:'mm',format:'a4'});
+  await useOutfit(d);
   const W=210; const M=16; const purple='#5B21B6'; const light='#F3EDFF'; const ink='#17131F'; const muted='#6F6879'; const line='#E7E1EE';
 
   function header(){
     d.setFillColor(255,255,255); d.rect(0,0,W,25,'F');
     if(logo){try{d.addImage(logo,'PNG',M,5,22,15)}catch{}}
-    d.setTextColor(ink); d.setFont('helvetica','bold'); d.setFontSize(14); d.text('AFA Escola Sant Salvador',M+27,11);
-    d.setFont('helvetica','normal'); d.setFontSize(7.5); d.setTextColor(muted); d.text('ACTIVA’T · Secretaria Virtual · Curs 2026–2027',M+27,16);
+    d.setTextColor(ink); d.setFont('Outfit','bold'); d.setFontSize(14); d.text('AFA Escola Sant Salvador',M+27,11);
+    d.setFont('Outfit','normal'); d.setFontSize(7.5); d.setTextColor(muted); d.text('ACTIVA’T · Secretaria Virtual · Curs 2026–2027',M+27,16);
     d.setDrawColor(line); d.line(M,23,W-M,23);
   }
   function footer(){
@@ -79,14 +81,14 @@ export default function Preinscripcio(){
   }
   function section(n:string,title:string,y:number){
     d.setFillColor(purple); d.roundedRect(M,y,8,8,2,2,'F');
-    d.setTextColor(255,255,255); d.setFont('helvetica','bold'); d.setFontSize(9); d.text(n,M+4,y+5.5,{align:'center'});
+    d.setTextColor(255,255,255); d.setFont('Outfit','bold'); d.setFontSize(9); d.text(n,M+4,y+5.5,{align:'center'});
     d.setTextColor(ink); d.setFontSize(12); d.text(title,M+13,y+5.7); d.setDrawColor(line); d.line(M,y+11,W-M,y+11);
     return y+17;
   }
   function field(label:string,value:string,x:number,y:number,w:number,h=13){
     d.setFillColor(249,248,251); d.roundedRect(x,y,w,h,2.5,2.5,'F');
-    d.setTextColor(muted); d.setFont('helvetica','bold'); d.setFontSize(7.5); d.text(label.toUpperCase(),x+4,y+4.3);
-    d.setTextColor(ink); d.setFont('helvetica','normal'); d.setFontSize(8.5);
+    d.setTextColor(muted); d.setFont('Outfit','bold'); d.setFontSize(7.5); d.text(label.toUpperCase(),x+4,y+4.3);
+    d.setTextColor(ink); d.setFont('Outfit','normal'); d.setFontSize(8.5);
     const lines=d.splitTextToSize(String(value||'—').slice(0,180),w-8);
     d.text(lines.slice(0,2),x+4,y+9);
   }
@@ -97,22 +99,22 @@ export default function Preinscripcio(){
 
   header();
   let y=34;
-  d.setTextColor(purple); d.setFont('helvetica','bold'); d.setFontSize(8); d.text('ACTIVA’T · SECRETARIA VIRTUAL',M,y); y+=7;
+  d.setTextColor(purple); d.setFont('Outfit','bold'); d.setFontSize(8); d.text('ACTIVA’T · SECRETARIA VIRTUAL',M,y); y+=7;
   d.setTextColor(ink); d.setFontSize(20); d.text('FULL DE PREINSCRIPCIÓ D’ACTIVITAT',M,y); y+=8;
-  d.setTextColor(muted); d.setFont('helvetica','normal'); d.setFontSize(9); d.text('AFA Escola Sant Salvador · Curs 2026–2027',M,y);
-  d.setFillColor(light); d.roundedRect(136,32,58,22,4,4,'F'); d.setTextColor(muted); d.setFontSize(7); d.text('CODI',140,39); d.text('PREINSCRIPCIÓ',140,43); d.setTextColor(purple); d.setFont('helvetica','bold'); d.setFontSize(10); d.text(sent.code,140,50);
+  d.setTextColor(muted); d.setFont('Outfit','normal'); d.setFontSize(9); d.text('AFA Escola Sant Salvador · Curs 2026–2027',M,y);
+  d.setFillColor(light); d.roundedRect(136,32,58,22,4,4,'F'); d.setTextColor(muted); d.setFontSize(7); d.text('CODI',140,39); d.text('PREINSCRIPCIÓ',140,43); d.setTextColor(purple); d.setFont('Outfit','bold'); d.setFontSize(10); d.text(sent.code,140,50);
 
   if(activityPhoto){
     try{const img=d.getImageProperties(activityPhoto); const scale=Math.min(42/img.width,24/img.height); const w=img.width*scale; const h=img.height*scale; d.addImage(activityPhoto,'PNG',M+(42-w)/2,55+(24-h)/2,w,h);}catch{}
   }
-  d.setTextColor(ink); d.setFont('helvetica','bold'); d.setFontSize(10); d.text(f.activitat,M+47,62); d.setFont('helvetica','normal'); d.setFontSize(8); d.setTextColor(muted); d.text('Organitza: AFA Escola Sant Salvador',M+47,67); d.text(cfg.schedule,M+47,71); d.text(`Quota: ${money(cfg.nonMember)} · Soci/a AFA: ${money(cfg.member)}`,M+47,75);
+  d.setTextColor(ink); d.setFont('Outfit','bold'); d.setFontSize(10); d.text(f.activitat,M+47,62); d.setFont('Outfit','normal'); d.setFontSize(8); d.setTextColor(muted); d.text('Organitza: AFA Escola Sant Salvador',M+47,67); d.text(cfg.schedule,M+47,71); d.text(`Quota: ${money(cfg.nonMember)} · Soci/a AFA: ${money(cfg.member)}`,M+47,75);
 
   y=84; y=section('1','DADES DE L’ACTIVITAT I DE L’ALUMNE/A',y); field('Activitat',f.activitat,M,y,86); field('Curs / grup',`${f.curs} · ${f.grup}`,108,y,86); y+=16; field('Nom i cognoms',f.alumne,M,y,86); field('Data de naixement',f.naixement,108,y,86); y+=16; field('Al·lèrgies',f.alergies||'—',M,y,86); field('NESE',f.nese==='si'?'Sí':'No',108,y,86); y+=16; field('Obs. NESE',f.neseDetall||'—',M,y,178); y+=18;
   y=section('2','DADES DEL REPRESENTANT LEGAL',y); field('Nom i cognoms',f.tutor,M,y,86); field('DNI',f.dni,108,y,86); y+=16; field('Telèfon',f.telefon,M,y,86); field('Correu',f.email,108,y,86); y+=16; field('Adreça',`${f.adreca || '—'}, ${f.cp || ''} ${f.municipi || ''}`.replace(/\s+,/g,','),M,y,178); y+=18;
   y=section('3','PERSONES AUTORITZADES I EMERGÈNCIES',y); field('Recollida',f.autoritzats||'No indicades',M,y,86,18); field('Emergència',f.emergencia||'No indicats',108,y,86,18); y+=26;
   y=section('4','CONDICIONS ECONÒMIQUES',y); field('Quota base',money(effectiveQuota),M,y,58); field('Descompte',`${money(discount)} · ${discountLabel}`,77,y,71); field(cfg.extra?'Primer mes · llibre':'Primer mes',cfg.extra?`+${money(f.complements)}`:'Sense suplement',151,y,39); y+=16; field('Pagament',f.mitja||'A confirmar',M,y,85); field('Calendari','Primera quota: octubre 2026',108,y,82); y+=17; d.setFillColor(light); d.roundedRect(M,y,178,16,3,3,'F'); d.setTextColor(purple); d.setFont('helvetica','bold'); d.setFontSize(8); d.text('IMPORT PRIMERA QUOTA',M+5,y+6); d.setFontSize(14); d.text(money(total),W-M-5,y+11,{align:'right'}); y+=22;
 
-  y=section('5','DECLARACIONS I AUTORITZACIONS',y); d.setTextColor(ink); d.setFont('helvetica','normal'); d.setFontSize(8.1);
+  y=section('5','DECLARACIONS I AUTORITZACIONS',y); d.setTextColor(ink); d.setFont('Outfit','normal'); d.setFontSize(8.1);
   const declarations=[
     'La persona signant declara que les dades facilitades són certes i que té capacitat per autoritzar la participació de l’alumne/a.',
     'Accepta les normes de funcionament de l’activitat, els horaris i les instruccions de l’organització.',
@@ -135,7 +137,7 @@ export default function Preinscripcio(){
   if(y>248){ d.addPage(); header(); y=34; }
   y=section('8','SIGNATURES',y); field('Representant legal',f.tutor || '—',M,y,82,18); field('Lloc i data',`Tarragona, ${new Date().toLocaleDateString('ca-ES')}`,106,y,80,18); y += 22;
   if(f.signatureData){try{d.addImage(f.signatureData,'PNG',M,y,56,18)}catch{}}
-  d.setTextColor(muted); d.setFont('helvetica','normal'); d.setFontSize(7); d.text('La firma virtual es conserva amb l’expedient. Aquest document també es pot imprimir.',M,y+22);
+  d.setTextColor(muted); d.setFont('Outfit','normal'); d.setFontSize(7); d.text('La firma virtual es conserva amb l’expedient. Aquest document també es pot imprimir.',M,y+22);
 
   footer();
   d.save(`${sent.code}-preinscripcio.pdf`);
