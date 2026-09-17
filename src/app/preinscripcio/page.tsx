@@ -39,27 +39,87 @@ export default function Preinscripcio(){
  const discountLabel=useMemo(()=>{const p=[];if(f.isMember&&Number(f.memberDiscount)>0)p.push('Soci/a');if(Number(f.childOrder)===2&&Number(f.secondDiscount)>0)p.push('2n fill/a');if(Number(f.childOrder)>=3&&Number(f.thirdDiscount)>0)p.push('3r fill/a');return p.length?p.join(' · '):'Sense descompte'},[f]);
  async function submit(e:any){e.preventDefault();setSubmitError('');const requiredLegal=legalDocs.length?legalDocs.every(document=>legalAccepted[document.id]):Boolean(f.normativa);if(!requiredLegal){setLegalOpen(true);setSubmitError('Cal llegir i acceptar els quatre textos legals per continuar.');return}setSubmitting(true);const payload={...f,quota:effectiveQuota,descompte:discount,total,discountLabel,authorized_people:f.autoritzats?f.autoritzats.split('\n').filter(Boolean).map((name:string)=>({name})):[],emergency_contacts:f.emergencia?f.emergencia.split('\n').filter(Boolean).map((name:string)=>({name})):[],rules_accepted:true,legal_acceptances:legalAccepted,outing_accepted:Boolean(f.emergenciaOk),data_info_accepted:true,emergency_accepted:Boolean(f.emergenciaOk),signature_data:f.firmaVirtual||''};const r=await fetch('/api/public/registrations',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(payload)});const j=await r.json();setSubmitting(false);if(!r.ok){setSubmitError(j.error||'No s’ha pogut enviar el tràmit.');return}setSent({...j,total,discount,discountLabel});}
  async function logoData(){try{const r=await fetch(AFA_LOGO);const b=await r.blob();return await new Promise<string>(resolve=>{const fr=new FileReader();fr.onload=()=>resolve(String(fr.result));fr.readAsDataURL(b)})}catch{return ''}}
- async function pdf(){if(!sent)return;const d=new jsPDF({unit:'mm',format:'a4'});const W=210,M=16,content=W-M*2;const logo=await logoData();const activityImage=f.activitat==='Robòtica'?ROBOTICA_PHOTO:'/img/acollida.webp';const activityPhoto=await (async()=>{try{const r=await fetch(activityImage);const b=await r.blob();return await new Promise<string>(resolve=>{const fr=new FileReader();fr.onload=()=>resolve(String(fr.result));fr.readAsDataURL(b)})}catch{return ''}})();
-   const purple='#5B21B6', light='#F3EDFF', ink='#17131F', muted='#6F6879', line='#E7E1EE';
-   const section=(n:string,title:string,y:number)=>{d.setFillColor(purple);d.roundedRect(M,y,8,8,2,2,'F');d.setTextColor(255,255,255);d.setFont('helvetica','bold');d.setFontSize(9);d.text(n,M+4,y+5.5,{align:'center'});d.setTextColor(ink);d.setFontSize(12);d.text(title,M+13,y+5.7);d.setDrawColor(line);d.line(M,y+11,W-M,y+11);return y+17};
-  const field=(label:string,value:string,x:number,y:number,w:number,h=13)=>{d.setFillColor(249,248,251);d.roundedRect(x,y,w,h,2.5,2.5,'F');d.setTextColor(muted);d.setFont('helvetica','bold');d.setFontSize(7.5);d.text(label.toUpperCase(),x+4,y+4.3);if(label==='Representant legal'&&f.signatureData){try{d.addImage(f.signatureData,'PNG',x+4,y+6,w-8,h-7)}catch{}}else{d.setTextColor(ink);d.setFont('helvetica','normal');d.setFontSize(9);wrapText(d,value||'—',x+4,y+9,w-8,4.3)}};
-   function header(){d.setFillColor(255,255,255);d.rect(0,0,W,25,'F');if(logo){try{d.addImage(logo,'PNG',M,5,22,15)}catch{}}else{d.setFillColor(193,0,225);d.text('A',M+3,14)}d.setTextColor(ink);d.setFont('helvetica','bold');d.setFontSize(14);d.text("AFA Escola Sant Salvador",M+27,11);d.setFont('helvetica','normal');d.setFontSize(7.5);d.setTextColor(muted);d.text('ACTIVA’T · Secretaria Virtual · Curs 2026–2027',M+27,16);d.setDrawColor(line);d.line(M,23,W-M,23);}
-  function footer(){const page=d.getNumberOfPages();for(let p=1;p<=page;p++){d.setPage(p);d.setDrawColor(line);d.line(M,287,W-M,287);d.setTextColor(muted);d.setFontSize(7);d.text(`ACTIVA’T · Full de preinscripció · ${sent.code}`,M,292);d.text(`Pàgina ${p}/${page}`,W-M,292,{align:'right'})}}
-   header();let y=34;d.setTextColor(purple);d.setFont('helvetica','bold');d.setFontSize(8);d.text('ACTIVA’T · SECRETARIA VIRTUAL',M,y);y+=7;d.setTextColor(ink);d.setFontSize(20);d.text("FULL DE PREINSCRIPCIÓ D’ACTIVITAT",M,y);y+=7;d.setTextColor(muted);d.setFont('helvetica','normal');d.setFontSize(9);d.text('AFA Escola Sant Salvador · Curs 2026–2027',M,y);d.setFillColor(light);d.roundedRect(137,32,57,22,4,4,'F');d.setTextColor(muted);d.setFontSize(7);d.text('CODI DE PREINSCRIPCIÓ',141,39);d.setTextColor(purple);d.setFont('helvetica','bold');d.setFontSize(11);d.text(sent.code,141,47);
-  if(activityPhoto){try{const boxW=42,boxH=24;const properties=d.getImageProperties(activityPhoto);const scale=Math.min(boxW/properties.width,boxH/properties.height);const imageW=properties.width*scale,imageH=properties.height*scale;d.addImage(activityPhoto,'PNG',M+(boxW-imageW)/2,55+(boxH-imageH)/2,imageW,imageH)}catch{}}
-   d.setTextColor(ink);d.setFont('helvetica','bold');d.setFontSize(10);d.text(f.activitat,M+47,62);d.setFont('helvetica','normal');d.setFontSize(8);d.setTextColor(muted);d.text('Organitza: AFA Escola Sant Salvador',M+47,67);d.text(cfg.schedule,M+47,71);d.text(`Quota: ${money(cfg.nonMember)} · Soci/a AFA: ${money(cfg.member)}`,M+47,75);
-   y=82;y=section('1','DADES DE L’ACTIVITAT I DE L’ALUMNE/A',y);field('Activitat',f.activitat,M,y,86);field('Curs / grup',`${f.curs} · ${f.grup}`,108,y,86);y+=16;field('Nom i cognoms',f.alumne,M,y,86);field('Data de naixement',f.naixement,108,y,86);y+=16;field('Al·lèrgies / informació rellevant',f.alergies||'—',M,y,86);field('Condició NESE',f.nese==='si'?'Sí':'No',108,y,86);y+=16;field('Observacions NESE',f.neseDetall||'—',M,y,178);y+=18;
-  y=section('2 bis','PERSONES AUTORITZADES I CONTACTES',y);field('Persones autoritzades per recollir',f.autoritzats||'No indicades',M,y,86,23);field('Contactes d’emergència',f.emergencia||'No indicats',108,y,86,23);y+=28;
-   y=section('2','DADES DEL REPRESENTANT LEGAL',y);field('Nom i cognoms',f.tutor,M,y,86);field('DNI / NIE / passaport',f.dni,108,y,86);y+=16;field('Telèfon',f.telefon,M,y,86);field('Correu electrònic',f.email,108,y,86);y+=16;field('Adreça',`${f.adreca}, ${f.cp} ${f.municipi}`,M,y,178);y+=18;
-  y=section('3','CONDICIONS ECONÒMIQUES',y);field('Quota base calculada',money(effectiveQuota),M,y,55);field('Descompte aplicat',`${money(discount)} · ${discountLabel}`,77,y,70);field('Complement configurat',money(f.complements),151,y,39);y+=16;field('Gestió del pagament','A càrrec de Secretaria',M,y,86);field('Estat','Pendent de pagament',108,y,82);y+=17;d.setFillColor(light);d.roundedRect(M,y,178,16,3,3,'F');d.setTextColor(purple);d.setFont('helvetica','bold');d.setFontSize(8);d.text('IMPORT ESTIMAT',M+5,y+6);d.setFontSize(14);d.text(money(total),W-M-5,y+11,{align:'right'});d.setTextColor(muted);d.setFont('helvetica','normal');d.setFontSize(7);d.text('L’import final, els descomptes i el registre del pagament els confirma Secretaria.',M+5,y+13.5);y+=23;
-   y=section('4','SITUACIÓ DE SOCI/A I FRATERNITAT',y);field('Condició de soci/a',f.isMember?'Soci/a':'No soci/a',M,y,58);field('Fills/es registrats/des',String(f.childrenCount||1),78,y,50);field('Ordre del fill/a',Number(f.childOrder)>=3?'3r o posterior':`${f.childOrder}r`,132,y,54);y+=18;
-   y=section('5','DECLARACIONS I AUTORITZACIONS',y);d.setTextColor(ink);d.setFont('helvetica','normal');d.setFontSize(8.5);const decl=["La persona signant declara que les dades facilitades són certes i que té capacitat per autoritzar la participació de l’alumne/a.","Accepta les normes de funcionament de l’activitat, els horaris i les instruccions de l’organització.","La informació sobre imatge és separada i voluntària; el rebuig o la retirada d’aquesta autorització no impedirà la participació en l’activitat.","En cas d’incidència o urgència, l’AFA podrà contactar amb les persones indicades i adoptar les mesures raonables de protecció de l’infant, dins de les seves funcions."];for(const t of decl){y=wrapText(d,'• '+t,M,y,178,4.5)+2;if(y>270){d.addPage();header();y=34}}
-   if(y>246){d.addPage();header();y=34}y=section('6','INFORMACIÓ BÀSICA SOBRE PROTECCIÓ DE DADES',y);d.setFont('helvetica','normal');d.setFontSize(7.7);d.setTextColor(ink);const privacy="Responsable: AFA Escola Sant Salvador. Domicili: Av. de Sant Salvador, 13, 43130 Tarragona. Contacte: contacte@afaescolasantsalvador.org. Finalitats: gestionar la preinscripció i participació en activitats, organitzar els grups, gestionar comunicacions relacionades amb l’activitat, atendre incidències i complir les obligacions legals que siguin aplicables. Base jurídica: gestió de la relació derivada de la sol·licitud/inscripció i, quan correspongui, el consentiment específic. Les dades estrictament necessàries no es basen en el consentiment quan existeixi una altra base jurídica aplicable. Conservació: les dades es conservaran durant el temps necessari per a la gestió de l’activitat i, posteriorment, durant els terminis exigits per obligacions legals o per a l’exercici i defensa de reclamacions. Drets: es pot sol·licitar l’accés, rectificació, supressió, oposició, limitació del tractament i, quan sigui aplicable, portabilitat, així com retirar un consentiment, mitjançant contacte amb l’AFA. També es pot presentar una reclamació davant l’Autoritat Catalana de Protecció de Dades (APDCAT) o l’autoritat de control competent. Destinataris: les dades només es comunicaran a tercers quan sigui necessari per gestionar l’activitat, existeixi una obligació legal o hi hagi una base jurídica que ho permeti. Quan s’utilitzin encarregats del tractament, aquests hauran d’oferir les garanties exigides per la normativa.";y=wrapText(d,privacy,M,y,178,4.1)+5;
-   if(y>252){d.addPage();header();y=34}y=section('7','AUTORITZACIÓ D’IMATGE — TEXT EXPRESS DE LA DECISIÓ',y);y=wrapText(d,`Jo, ${f.tutor}, com a mare/pare o representant legal de l’alumne/a ${f.alumne}, ${f.imatge==='si'?'AUTORITZO':'NO AUTORITZO'} la captació, reproducció i publicació d’imatges o vídeos de l’alumne/a per a les finalitats de difusió i comunicació de les activitats de l’AFA. ${f.imatge==='si'?'Aquesta autorització és específica i voluntària.':'Aquesta negativa no impedeix la participació en l’activitat.'}`,M,y,178,4.5)+7;
-   y=section('8','INFORMACIÓ SOBRE EL CODI I LA GESTIÓ DE PLACES',y);y=wrapText(d,`A cada preinscripció se li assigna un codi de preinscripció únic. Aquest codi permet identificar i consultar l’estat de la sol·licitud mitjançant contacte@afaescolasantsalvador.org. La gestió de places es farà per activitat. Per a aquest curs, tant Robòtica com Acollida Matinal tenen un límit de 12 alumnes cadascuna.`,M,y,178,4.5)+7;
-  if(y>245){d.addPage();header();y=34}y=section('9','SIGNATURES',y);field('Representant legal',f.tutor,M,y,82,25);field('Lloc i data',`Tarragona, ${new Date().toLocaleDateString('ca-ES')}`,106,y,80,25);d.setTextColor(muted);d.setFontSize(7);d.text('La firma virtual es conserva amb l’expedient. Aquest document també es pot imprimir.',M,y+31);y+=38;
-  for(const document of legalDocs){if(y>245){d.addPage();header();y=34}y=section('L',document.title.toUpperCase(),y);const plain=document.text.split('\n').map(line=>line.replace(/^#{1,6}\s*/,'').replace(/^\s*[-*]\s+/,'• ').replace(/\*\*/g,'').trim()).filter(Boolean);for(const line of plain){if(y>276){d.addPage();header();y=34}d.setFont('helvetica',line.startsWith('•')?'normal':'normal');d.setFontSize(line.length<70?8:7.3);d.setTextColor(ink);const lines=d.splitTextToSize(line,178);for(const wrapped of lines){if(y>276){d.addPage();header();y=34}d.text(wrapped,M,y);y+=3.6}y+=1}y+=7}
-  footer();d.save(`${sent.code}-preinscripcio.pdf`)
+ async function pdf(){
+  if(!sent)return;
+  const d=new jsPDF({unit:'mm',format:'a4'});
+  const W=210; const M=16; const purple='#5B21B6'; const light='#F3EDFF'; const ink='#17131F'; const muted='#6F6879'; const line='#E7E1EE';
+
+  function header(){
+    d.setFillColor(255,255,255); d.rect(0,0,W,25,'F');
+    if(AFA_LOGO){try{const logo=await logoData(); if(logo){d.addImage(logo,'PNG',M,5,22,15)}}catch{}}
+    d.setTextColor(ink); d.setFont('helvetica','bold'); d.setFontSize(14); d.text('AFA Escola Sant Salvador',M+27,11);
+    d.setFont('helvetica','normal'); d.setFontSize(7.5); d.setTextColor(muted); d.text('ACTIVA’T · Secretaria Virtual · Curs 2026–2027',M+27,16);
+    d.setDrawColor(line); d.line(M,23,W-M,23);
+  }
+  function footer(){
+    const pages=d.getNumberOfPages();
+    for(let page=1;page<=pages;page++){
+      d.setPage(page); d.setDrawColor(line); d.line(M,287,W-M,287); d.setTextColor(muted); d.setFontSize(7);
+      d.text(`ACTIVA’T · Full de preinscripció · ${sent.code}`,M,292); d.text(`Pàgina ${page}/${pages}`,W-M,292,{align:'right'});
+    }
+  }
+  function section(n:string,title:string,y:number){
+    d.setFillColor(purple); d.roundedRect(M,y,8,8,2,2,'F');
+    d.setTextColor(255,255,255); d.setFont('helvetica','bold'); d.setFontSize(9); d.text(n,M+4,y+5.5,{align:'center'});
+    d.setTextColor(ink); d.setFontSize(12); d.text(title,M+13,y+5.7); d.setDrawColor(line); d.line(M,y+11,W-M,y+11);
+    return y+17;
+  }
+  function field(label:string,value:string,x:number,y:number,w:number,h=13){
+    d.setFillColor(249,248,251); d.roundedRect(x,y,w,h,2.5,2.5,'F');
+    d.setTextColor(muted); d.setFont('helvetica','bold'); d.setFontSize(7.5); d.text(label.toUpperCase(),x+4,y+4.3);
+    d.setTextColor(ink); d.setFont('helvetica','normal'); d.setFontSize(8.5);
+    const lines=d.splitTextToSize(String(value||'—').slice(0,180),w-8);
+    d.text(lines.slice(0,2),x+4,y+9);
+  }
+
+  const logo=await logoData();
+  const activityImage=f.activitat==='Robòtica'?ROBOTICA_PHOTO:'/img/acollida.webp';
+  const activityPhoto=await (async()=>{try{const response=await fetch(activityImage); const blob=await response.blob(); return await new Promise<string>((resolve)=>{const reader=new FileReader(); reader.onload=()=>resolve(String(reader.result)); reader.readAsDataURL(blob); });}catch{return ''}})();
+
+  header();
+  let y=34;
+  d.setTextColor(purple); d.setFont('helvetica','bold'); d.setFontSize(8); d.text('ACTIVA’T · SECRETARIA VIRTUAL',M,y); y+=7;
+  d.setTextColor(ink); d.setFontSize(20); d.text('FULL DE PREINSCRIPCIÓ D’ACTIVITAT',M,y); y+=8;
+  d.setTextColor(muted); d.setFont('helvetica','normal'); d.setFontSize(9); d.text('AFA Escola Sant Salvador · Curs 2026–2027',M,y);
+  d.setFillColor(light); d.roundedRect(136,32,58,22,4,4,'F'); d.setTextColor(muted); d.setFontSize(7); d.text('CODI',140,39); d.text('PREINSCRIPCIÓ',140,43); d.setTextColor(purple); d.setFont('helvetica','bold'); d.setFontSize(10); d.text(sent.code,140,50);
+
+  if(activityPhoto){
+    try{const img=d.getImageProperties(activityPhoto); const scale=Math.min(42/img.width,24/img.height); const w=img.width*scale; const h=img.height*scale; d.addImage(activityPhoto,'PNG',M+(42-w)/2,55+(24-h)/2,w,h);}catch{}
+  }
+  d.setTextColor(ink); d.setFont('helvetica','bold'); d.setFontSize(10); d.text(f.activitat,M+47,62); d.setFont('helvetica','normal'); d.setFontSize(8); d.setTextColor(muted); d.text('Organitza: AFA Escola Sant Salvador',M+47,67); d.text(cfg.schedule,M+47,71); d.text(`Quota: ${money(cfg.nonMember)} · Soci/a AFA: ${money(cfg.member)}`,M+47,75);
+
+  y=84; y=section('1','DADES DE L’ACTIVITAT I DE L’ALUMNE/A',y); field('Activitat',f.activitat,M,y,86); field('Curs / grup',`${f.curs} · ${f.grup}`,108,y,86); y+=16; field('Nom i cognoms',f.alumne,M,y,86); field('Data de naixement',f.naixement,108,y,86); y+=16; field('Al·lèrgies',f.alergies||'—',M,y,86); field('NESE',f.nese==='si'?'Sí':'No',108,y,86); y+=16; field('Obs. NESE',f.neseDetall||'—',M,y,178); y+=18;
+  y=section('2','DADES DEL REPRESENTANT LEGAL',y); field('Nom i cognoms',f.tutor,M,y,86); field('DNI',f.dni,108,y,86); y+=16; field('Telèfon',f.telefon,M,y,86); field('Correu',f.email,108,y,86); y+=16; field('Adreça',`${f.adreca || '—'}, ${f.cp || ''} ${f.municipi || ''}`.replace(/\s+,/g,','),M,y,178); y+=18;
+  y=section('3','PERSONES AUTORITZADES I EMERGÈNCIES',y); field('Recollida',f.autoritzats||'No indicades',M,y,86,18); field('Emergència',f.emergencia||'No indicats',108,y,86,18); y+=26;
+  y=section('4','CONDICIONS ECONÒMIQUES',y); field('Quota base',money(effectiveQuota),M,y,58); field('Descompte',`${money(discount)} · ${discountLabel}`,77,y,71); field('Complement',money(f.complements),151,y,39); y+=16; field('Pagament',f.mitja||'A confirmar',M,y,85); field('Estat','Pendent de pagament',108,y,82); y+=17; d.setFillColor(light); d.roundedRect(M,y,178,16,3,3,'F'); d.setTextColor(purple); d.setFont('helvetica','bold'); d.setFontSize(8); d.text('IMPORT ESTIMAT',M+5,y+6); d.setFontSize(14); d.text(money(total),W-M-5,y+11,{align:'right'}); y+=22;
+
+  y=section('5','DECLARACIONS I AUTORITZACIONS',y); d.setTextColor(ink); d.setFont('helvetica','normal'); d.setFontSize(8.1);
+  const declarations=[
+    'La persona signant declara que les dades facilitades són certes i que té capacitat per autoritzar la participació de l’alumne/a.',
+    'Accepta les normes de funcionament de l’activitat, els horaris i les instruccions de l’organització.',
+    'La informació d’imatge és separada i voluntària; no autoritzar-la no impedeix la participació.',
+    'En cas d’incidència o urgència, l’AFA podrà contactar amb les persones indicades i adoptar les mesures raonables de protecció.'
+  ];
+  for(const text of declarations){
+    const lines=d.splitTextToSize('• '+text,178);
+    if(y+lines.length*4>280){ d.addPage(); header(); y=34; }
+    d.text(lines,M,y); y += lines.length*4 + 2;
+  }
+
+  if(y>245){ d.addPage(); header(); y=34; }
+  y=section('6','PROTECCIÓ DE DADES',y); d.setFontSize(7.5); const privacy='Responsable: AFA Escola Sant Salvador. Domicili: Av. de Sant Salvador, 13, 43130 Tarragona. Contacte: contacte@afaescolasantsalvador.org. Finalitats: gestionar la preinscripció, els grups, les comunicacions i les incidències relacionades amb l’activitat. Base jurídica: la gestió de la relació derivada de la sol·licitud i, quan correspongui, el consentiment. Drets: accés, rectificació, supressió, oposició, limitació i portabilitat, així com retirar el consentiment, mitjançant contacte@afaescolasantsalvador.org.';
+  const privacyLines=d.splitTextToSize(privacy,178); d.text(privacyLines,M,y); y += privacyLines.length*3.7 + 8;
+
+  if(y>248){ d.addPage(); header(); y=34; }
+  y=section('7','AUTORITZACIÓ D’IMATGE',y); const imageText=`Jo, ${f.tutor}, com a mare/pare o representant legal de l’alumne/a ${f.alumne}, ${f.imatge==='si'?'AUTORITZO':'NO AUTORITZO'} la captació, reproducció i publicació d’imatges o vídeos de l’alumne/a per a les finalitats de difusió i comunicació de les activitats de l’AFA.`; const imageLines=d.splitTextToSize(imageText,178); d.text(imageLines,M,y); y += imageLines.length*4 + 8;
+
+  if(y>248){ d.addPage(); header(); y=34; }
+  y=section('8','SIGNATURES',y); field('Representant legal',f.tutor || '—',M,y,82,18); field('Lloc i data',`Tarragona, ${new Date().toLocaleDateString('ca-ES')}`,106,y,80,18); y += 22;
+  if(f.signatureData){try{d.addImage(f.signatureData,'PNG',M,y,56,18)}catch{}}
+  d.setTextColor(muted); d.setFont('helvetica','normal'); d.setFontSize(7); d.text('La firma virtual es conserva amb l’expedient. Aquest document també es pot imprimir.',M,y+22);
+
+  footer();
+  d.save(`${sent.code}-preinscripcio.pdf`);
  }
  if(sent)return <main className="container"><section className="hero"><span className="pill ok">✓ Tràmit registrat</span><h1>Preinscripció enviada</h1><p>La gestió ha quedat registrada. Guarda el codi <b>{sent.code}</b>; no cal iniciar sessió.</p></section><section className="card confirmationCard" style={{maxWidth:850}}><div className="row space"><div><span className="eyebrow">Codi de preinscripció</span><div className="codeBox">{sent.code}</div></div><span className="pill wait">En revisió</span></div><div className="detailGrid" style={{marginTop:22}}><div className="detailItem"><small>Alumne/a</small><b>{f.alumne}</b></div><div className="detailItem"><small>Activitat</small><b>{f.activitat}</b></div><div className="detailItem"><small>Condició</small><b>{f.isMember?'Soci/a':'No soci/a'} · {f.childOrder}r fill/a</b></div><div className="detailItem"><small>Import estimat</small><b>{money(sent.total)}</b></div></div><div className="section confirmationDocuments"><h3>Document</h3><p className="muted small">Descarrega el full oficial de preinscripció amb totes les dades, textos legals i la firma.</p><button className="btn primary" onClick={()=>pdf()}>↓ Descarregar PDF</button></div></section></main>;
  return <main className="container"><section className="hero"><span className="eyebrow">Nou tràmit · Curs 2026–2027</span><h1>Preinscripció en pocs passos</h1><p>Completa les dades de l’alumne/a i del representant. Secretaria podrà corregir qualsevol dada després.</p></section><section className="heroPanel formIntro"><div><b>Abans de començar</b><p>Necessitaràs les dades de contacte, les persones autoritzades i l’acceptació dels textos legals.</p></div><div className="formSteps"><span className="active">1 <small>Dades</small></span><i></i><span>2 <small>Contactes</small></span><i></i><span>3 <small>Confirmació</small></span></div></section><form className="card form formCard" onSubmit={submit} style={{marginTop:20}}>

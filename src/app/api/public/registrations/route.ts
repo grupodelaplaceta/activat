@@ -1,3 +1,74 @@
-import {NextResponse} from 'next/server';import {adminSupabase} from '@/lib/supabase';
-function makeCode(){return `AFA-${new Date().getFullYear().toString().slice(-2)}-${Math.random().toString(36).slice(2,5).toUpperCase()}-${Math.floor(100+Math.random()*900)}`}
-export async function POST(req:Request){const f=await req.json();if(!f.alumne||!f.tutor||!f.email||!f.activitat)return NextResponse.json({error:'Falten dades obligatòries.'},{status:400});const total=Math.max(0,Number(f.quota||0)-Number(f.descompte||0))+Number(f.complements||0);const record={code:makeCode(),status:'pendent de pagament',course:f.curs,group_name:f.grup,activity_name:f.activitat,student_name:f.alumne,birth_date:f.naixement||null,allergies:f.alergies||'',nese:f.nese,nese_detail:f.neseDetall||'',representative_name:f.tutor,dni:f.dni||'',phone:f.telefon||'',email:f.email,address:f.adreca||'',city:f.municipi||'',postal_code:f.cp||'',authorized_people:Array.isArray(f.authorized_people)?f.authorized_people:[],emergency_contacts:Array.isArray(f.emergency_contacts)?f.emergency_contacts:[],signature_data:f.signature_data||'',legal_acceptances:f.legal_acceptances||{},rules_accepted:Boolean(f.rules_accepted),outing_accepted:Boolean(f.outing_accepted),data_info_accepted:Boolean(f.data_info_accepted),emergency_accepted:Boolean(f.emergency_accepted),image_consent:f.imatge==='si',base_amount:Number(f.quota||0),discount_amount:Number(f.descompte||0),complements_amount:Number(f.complements||0),total_amount:total,paid_amount:0,payment_method:f.mitja||'',is_member:Boolean(f.isMember),registered_children_count:Math.max(1,Number(f.childrenCount||1)),child_order:Math.max(1,Number(f.childOrder||1)),member_discount_amount:Boolean(f.isMember)?Number(f.memberDiscount||0):0,sibling_discount_amount:Math.max(0,Number(f.childOrder||1))===2?Number(f.secondDiscount||0):(Math.max(0,Number(f.childOrder||1))>=3?Number(f.thirdDiscount||0):0),discount_label:f.discountLabel||'',created_at:new Date().toISOString()};try{const sb=adminSupabase();const {error}=await sb.from('registrations').insert(record);if(error)throw error;return NextResponse.json({code:record.code,total});}catch{return NextResponse.json({code:record.code,total,demo:true});}}
+import {NextResponse} from 'next/server';
+import {adminSupabase} from '@/lib/supabase';
+
+function makeCode(){
+  return `AFA-${new Date().getFullYear().toString().slice(-2)}-${Math.random().toString(36).slice(2,5).toUpperCase()}-${Math.floor(100+Math.random()*900)}`;
+}
+
+export async function POST(req:Request){
+  const f=await req.json();
+  if(!f.alumne||!f.tutor||!f.email||!f.activitat){
+    return NextResponse.json({error:'Falten dades obligatòries.'},{status:400});
+  }
+
+  const total=Math.max(0,Number(f.quota||0)-Number(f.descompte||0))+Number(f.complements||0);
+  const record={
+    code:makeCode(),
+    status:'pendent de pagament',
+    course:f.curs,
+    group_name:f.grup,
+    activity_name:f.activitat,
+    student_name:f.alumne,
+    birth_date:f.naixement||null,
+    allergies:f.alergies||'',
+    nese:f.nese,
+    nese_detail:f.neseDetall||'',
+    representative_name:f.tutor,
+    dni:f.dni||'',
+    phone:f.telefon||'',
+    email:f.email,
+    address:f.adreca||'',
+    city:f.municipi||'',
+    postal_code:f.cp||'',
+    authorized_people:Array.isArray(f.authorized_people)?f.authorized_people:[],
+    emergency_contacts:Array.isArray(f.emergency_contacts)?f.emergency_contacts:[],
+    signature_data:f.signature_data||'',
+    legal_acceptances:f.legal_acceptances||{},
+    rules_accepted:Boolean(f.rules_accepted),
+    outing_accepted:Boolean(f.outing_accepted),
+    data_info_accepted:Boolean(f.data_info_accepted),
+    emergency_accepted:Boolean(f.emergency_accepted),
+    image_consent:f.imatge==='si',
+    base_amount:Number(f.quota||0),
+    discount_amount:Number(f.descompte||0),
+    complements_amount:Number(f.complements||0),
+    total_amount:total,
+    paid_amount:0,
+    payment_method:f.mitja||'',
+    is_member:Boolean(f.isMember),
+    registered_children_count:Math.max(1,Number(f.childrenCount||1)),
+    child_order:Math.max(1,Number(f.childOrder||1)),
+    member_discount_amount:Boolean(f.isMember)?Number(f.memberDiscount||0):0,
+    sibling_discount_amount:Math.max(0,Number(f.childOrder||1))===2?Number(f.secondDiscount||0):(Math.max(0,Number(f.childOrder||1))>=3?Number(f.thirdDiscount||0):0),
+    discount_label:f.discountLabel||'',
+    created_at:new Date().toISOString(),
+  } as any;
+
+  try{
+    const sb=adminSupabase();
+    const {data:activities}=await sb.from('activities').select('id,name,slug').eq('active',true);
+    const matchedActivity=(activities||[]).find((activity:any)=>
+      activity.name===f.activitat || activity.slug===String(f.activitat).toLowerCase().replace(/\s+/g,'-')
+    );
+    if(matchedActivity){
+      record.activity_id = matchedActivity.id;
+      record.activity_name = matchedActivity.name;
+    }
+
+    const {error}=await sb.from('registrations').insert(record);
+    if(error)throw error;
+    return NextResponse.json({code:record.code,total});
+  }catch{
+    return NextResponse.json({code:record.code,total,demo:true});
+  }
+}

@@ -154,6 +154,24 @@ export default function Gestio() {
   }
   async function save(markPaid = false) {
     if (!selected) return;
+    const activity = (data?.activities || []).find(
+      (item: any) =>
+        item.id === selected.activity_id ||
+        item.name === selected.activity_name,
+    );
+    const capacity = Number(activity?.capacity_override ?? activity?.capacity ?? 0);
+    const occupied = (data?.registrations || []).filter(
+      (record: any) =>
+        record.id !== selected.id &&
+        record.activity_id === selected.activity_id &&
+        ["admesa", "matriculada"].includes(String(record.status || "").toLowerCase()),
+    ).length;
+    const targetStatus = String(selected.status || "").trim().toLowerCase();
+    if (capacity > 0 && ["admesa", "matriculada"].includes(targetStatus) && occupied >= capacity) {
+      setError("No hi ha places disponibles per a aquesta activitat. Posaria l’expedient a llista d’espera o revisa la capacitat.");
+      return;
+    }
+
     setSaving(true);
     const payload = { ...selected, mark_paid: markPaid, fees: selected.fees };
     const response = await fetch(`/api/admin/registrations/${selected.id}`, {
