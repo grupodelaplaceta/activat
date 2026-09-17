@@ -8,8 +8,15 @@ create table if not exists receipts (id uuid primary key default gen_random_uuid
 create table if not exists place_movements (id uuid primary key default gen_random_uuid(), activity_id uuid references activities(id), registration_id uuid references registrations(id), movement_type text not null, from_status text, to_status text, quantity integer not null default 1, reason text, created_at timestamptz not null default now());
 create table if not exists documents (id uuid primary key default gen_random_uuid(), registration_id uuid references registrations(id) on delete cascade, activity_id uuid references activities(id), type text not null, title text not null, storage_path text, created_at timestamptz not null default now());
 create table if not exists communications (id uuid primary key default gen_random_uuid(), registration_id uuid references registrations(id) on delete cascade, channel text not null, recipient text, subject text, body text, status text not null default 'pendent', sent_at timestamptz);
+alter table activities add column if not exists vacancies_open boolean not null default true;
+alter table activities add column if not exists capacity_override integer;
+alter table registrations add column if not exists special_tariff_enabled boolean not null default false;
+alter table registrations add column if not exists special_tariff_amount numeric(10,2);
+alter table registrations add column if not exists special_tariff_label text default '';
+
 create index if not exists registrations_code_idx on registrations(code);
 create index if not exists registrations_activity_idx on registrations(activity_id);
+create index if not exists registrations_payment_date_idx on registrations(payment_date);
 create index if not exists monthly_fees_month_idx on monthly_fees(month);
 create index if not exists place_movements_activity_idx on place_movements(activity_id);
 -- Public reads/writes are intentionally NOT exposed through anon policies. The application routes use the server-only service role.

@@ -1,5 +1,6 @@
 import './globals.css';
 import Link from 'next/link';
+import {AFA_LOGO} from '@/lib/demo';
 
 export const metadata={
   title:'ACTIVA’T · Secretaria Virtual · AFA Escola Sant Salvador',
@@ -11,7 +12,7 @@ export default function RootLayout({children}:{children:React.ReactNode}){
     <header className="top">
       <nav className="nav">
         <Link href="/" className="brand">
-          <span className="brandLogo"><span>A</span><span>F</span><span>A</span></span>
+          <span className="brandLogo"><img src={AFA_LOGO} alt="AFA Escola Sant Salvador" /></span>
           <span className="brandText"><strong>ACTIVA’T</strong><small>Secretaria Virtual · AFA Escola Sant Salvador</small></span>
         </Link>
         <div className="navlinks">

@@ -28,3 +28,12 @@ No hay cuentas de familia ni contraseña. El acceso a una gestión se realiza me
 
 ## Datos demo
 Eliminar/aislar todos los datos de prueba antes de producción.
+
+
+## Regles de pagament i places
+- Tota nova preinscripció queda com a **pendent de pagament** i `paid_amount = 0`.
+- El pagament s'ha de realitzar immediatament a l'AFA, els **dimarts de 14:45 a 16:00 h**.
+- Secretaria és qui registra el pagament. En fer-ho, es guarda `payment_date` i l'estat passa a **Pendent d’assignació de plaça**.
+- La data de pagament és la data computable per ordenar l'assignació de places.
+- Secretaria pot activar una **tarifa especial** i indicar-ne manualment l'import i el motiu. Si no hi ha tarifa especial, el preu es calcula automàticament segons soci/a, germans i complements.
+- Les quotes mensuals es poden gestionar fins al final del curs. Una quota marcada com **Nula** té import 0 i no entra en el càlcul de facturació/cobrament del curs.
