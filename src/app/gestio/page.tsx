@@ -196,6 +196,52 @@ export default function Gestio() {
     }));
     setSelected({ ...json, fees: json.fees || selected.fees });
   }
+  async function placementAction(record: any, action: "assign_place" | "matriculate" | "waitlist") {
+    setError("");
+    const response = await fetch(`/api/admin/registrations/${record.id}`, {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        "x-activat-admin-secret": secret,
+      },
+      body: JSON.stringify({ action }),
+    });
+    const json = await response.json();
+    if (!response.ok) {
+      setError(json.error || "No s’ha pogut actualitzar la plaça.");
+      return;
+    }
+    setData((current: any) => ({
+      ...current,
+      registrations: current.registrations.map((item: any) =>
+        item.id === json.id ? { ...item, ...json } : item,
+      ),
+    }));
+    if (selected?.id === record.id) {
+      setSelected({ ...json, fees: json.fees || selected.fees || [] });
+    }
+  }
+  function downloadList(format: "csv" | "pdf") {
+    const title = view === "Llistes d’espera" ? "Llista d’espera" : view === "Matrícules" ? "Matrícules" : "Places i vacants";
+    if (format === "csv") {
+      const header = ["Posició", "Codi", "Alumne/a", "Activitat", "Família", "Estat", "Plaça"];
+      const lines = rows.map((record: any, index: number) => [index + 1, record.code, record.student_name, record.activity_name, record.representative_name, record.status, record.place || ""]).map((line: any[]) => line.map((value) => `"${String(value ?? "").replaceAll('"', '""')}"`).join(","));
+      const blob = new Blob([[header.join(","), ...lines].join("\n")], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob); const link = document.createElement("a"); link.href = url; link.download = `${title.toLowerCase().replaceAll(" ", "-")}.csv`; link.click(); URL.revokeObjectURL(url);
+      return;
+    }
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    doc.setFont("helvetica", "bold"); doc.setFontSize(18); doc.text(`ACTIVA’T · ${title}`, 16, 20);
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.text(`Generat el ${new Date().toLocaleDateString("ca-ES")}`, 16, 27);
+    let y = 38;
+    rows.forEach((record: any, index: number) => {
+      if (y > 275) { doc.addPage(); y = 20; }
+      doc.setFont("helvetica", "bold"); doc.text(`${index + 1}. ${record.student_name || "—"}`, 16, y);
+      doc.setFont("helvetica", "normal"); doc.text(`${record.code} · ${record.activity_name} · ${record.status}${record.place ? ` · plaça ${record.place}` : ""}`, 22, y + 5);
+      y += 13;
+    });
+    doc.save(`${title.toLowerCase().replaceAll(" ", "-")}.pdf`);
+  }
   const rows = useMemo(() => {
     const all = data?.registrations || [];
     return all
@@ -207,6 +253,8 @@ export default function Gestio() {
             ? ["admesa", "matriculada"].includes(record.status)
             : view === "Llistes d’espera"
               ? record.status === "llista d’espera"
+                : view === "Places i vacants"
+                  ? !["admesa", "matriculada", "eliminada"].includes(String(record.status || "").toLowerCase())
               : true;
         return (
           section &&
@@ -683,6 +731,12 @@ export default function Gestio() {
                   <option key={item}>{item}</option>
                 ))}
               </select>
+              {(view === "Places i vacants" || view === "Matrícules" || view === "Llistes d’espera") && (
+                <div className="row" style={{ marginLeft: "auto" }}>
+                  <button className="btn secondary" onClick={() => downloadList("csv")}>CSV</button>
+                  <button className="btn secondary" onClick={() => downloadList("pdf")}>PDF</button>
+                </div>
+              )}
             </div>
             <div className="tablewrap">
               <table className="table">
@@ -693,6 +747,7 @@ export default function Gestio() {
                     <th>Activitat</th>
                     <th>Estat</th>
                     <th>Import</th>
+                    <th>Plaça</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -729,18 +784,27 @@ export default function Gestio() {
                         <b>{money(record.total_amount)}</b>
                       </td>
                       <td>
-                        <button
-                          className="btn secondary"
-                          onClick={() => open(record)}
-                        >
-                          Obrir
-                        </button>
+                        {record.place ? <b>#{record.place}</b> : <span className="muted">—</span>}
+                      </td>
+                      <td>
+                        <div className="row" style={{ flexWrap: "wrap" }}>
+                          <button className="btn secondary" onClick={() => open(record)}>Obrir</button>
+                          {!["admesa", "matriculada", "eliminada"].includes(String(record.status || "").toLowerCase()) && (
+                            <button className="btn primary" onClick={() => placementAction(record, "assign_place")}>Assignar</button>
+                          )}
+                          {String(record.status || "").toLowerCase() === "admesa" && (
+                            <button className="btn primary" onClick={() => placementAction(record, "matriculate")}>Matricular</button>
+                          )}
+                          {String(record.status || "").toLowerCase() !== "llista d’espera" && !["admesa", "matriculada", "eliminada"].includes(String(record.status || "").toLowerCase()) && (
+                            <button className="btn secondary" onClick={() => placementAction(record, "waitlist")}>Espera</button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
                   {!rows.length && (
                     <tr>
-                      <td colSpan={6}>
+                      <td colSpan={7}>
                         <div
                           className="muted"
                           style={{ padding: 25, textAlign: "center" }}
@@ -764,7 +828,7 @@ export default function Gestio() {
                     <div>
                       <b>{activity.name}</b>
                       <small className="muted" style={{ display: "block" }}>
-                        {activity.occupied || 0} ocupades · límit{" "}
+                        {activity.occupied || 0} ocupades · {activity.available ?? Math.max(0, Number(activity.capacity_override ?? activity.capacity ?? 0) - Number(activity.occupied || 0))} lliures · límit{" "}
                         {activity.capacity_override ?? activity.capacity}
                       </small>
                     </div>

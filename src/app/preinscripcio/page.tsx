@@ -46,7 +46,7 @@ export default function Preinscripcio(){
 
   function header(){
     d.setFillColor(255,255,255); d.rect(0,0,W,25,'F');
-    if(AFA_LOGO){try{const logo=await logoData(); if(logo){d.addImage(logo,'PNG',M,5,22,15)}}catch{}}
+    if(logo){try{d.addImage(logo,'PNG',M,5,22,15)}catch{}}
     d.setTextColor(ink); d.setFont('helvetica','bold'); d.setFontSize(14); d.text('AFA Escola Sant Salvador',M+27,11);
     d.setFont('helvetica','normal'); d.setFontSize(7.5); d.setTextColor(muted); d.text('ACTIVA’T · Secretaria Virtual · Curs 2026–2027',M+27,16);
     d.setDrawColor(line); d.line(M,23,W-M,23);

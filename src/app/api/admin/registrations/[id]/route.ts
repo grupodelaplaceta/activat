@@ -4,7 +4,8 @@ import {adminSupabase} from '@/lib/supabase';
 export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}>}){
   if(req.headers.get('x-activat-admin-secret')!==process.env.ACTIVAT_ADMIN_SECRET)return NextResponse.json({error:'No autoritzat.'},{status:401});
   const {id}=await params; const body=await req.json();
-  const allowed=['student_name','birth_date','allergies','nese','nese_detail','representative_name','dni','phone','email','address','city','postal_code','authorized_people','emergency_contacts','payment_method','paid_amount','signature_data','legal_acceptances','start_month','rules_accepted','outing_accepted','data_info_accepted','emergency_accepted','image_consent','course','group_name','is_member','registered_children_count','child_order','member_discount_amount','sibling_discount_amount','discount_amount','discount_label','status','special_tariff_enabled','special_tariff_amount','special_tariff_label','payment_date','mark_paid'];
+  const action=String(body.action||'');
+  const allowed=['student_name','birth_date','allergies','nese','nese_detail','representative_name','dni','phone','email','address','city','postal_code','authorized_people','emergency_contacts','payment_method','paid_amount','signature_data','legal_acceptances','start_month','rules_accepted','outing_accepted','data_info_accepted','emergency_accepted','image_consent','course','group_name','is_member','registered_children_count','child_order','member_discount_amount','sibling_discount_amount','discount_amount','discount_label','status','special_tariff_enabled','special_tariff_amount','special_tariff_label','payment_date','mark_paid','place'];
   const patch:any={};
   for(const k of allowed) if(body[k]!==undefined) patch[k]=body[k];
 
@@ -29,6 +30,29 @@ export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}
     if(readError) throw readError;
 
     const merged={...current,...patch};
+    if(action==='assign_place'||action==='waitlist'||action==='matriculate'){
+      const activityId=merged.activity_id;
+      const activityQuery=activityId
+        ? sb.from('activities').select('id,name,capacity,capacity_override,vacancies_open').eq('id',activityId).single()
+        : sb.from('activities').select('id,name,capacity,capacity_override,vacancies_open').eq('name',merged.activity_name).single();
+      const {data:activity,error:activityError}=await activityQuery;
+      if(activityError||!activity) return NextResponse.json({error:'No s’ha trobat l’activitat d’aquest expedient.'},{status:409});
+      const {data:occupiedRows,error:occupiedError}=await sb.from('registrations').select('id,place,status').eq('activity_id',activity.id).in('status',['admesa','matriculada']).neq('id',id);
+      if(occupiedError) throw occupiedError;
+      const capacity=Number(activity.capacity_override??activity.capacity??0);
+      if(action==='waitlist'){
+        patch.status='llista d’espera';
+        patch.place=null;
+      }else{
+        if(activity.vacancies_open===false) return NextResponse.json({error:'Les places d’aquesta activitat estan tancades.'},{status:409});
+        if(capacity>0&&(occupiedRows||[]).length>=capacity) return NextResponse.json({error:'No hi ha places disponibles. L’expedient s’ha de posar a la llista d’espera.'},{status:409});
+        const used=new Set((occupiedRows||[]).map((row:any)=>Number(row.place)).filter((place:number)=>Number.isInteger(place)&&place>0));
+        let place=1; while(used.has(place)) place+=1;
+        patch.place=place;
+        patch.status=action==='matriculate'?'matriculada':'admesa';
+      }
+      patch.activity_id=activity.id;
+    }
     const automatic=Math.max(0,Number(merged.base_amount||0)-Number(merged.member_discount_amount||0)-Number(merged.sibling_discount_amount||0))+Number(merged.complements_amount||0);
     const calculatedTotal = merged.special_tariff_enabled && merged.special_tariff_amount !== null && merged.special_tariff_amount !== undefined
       ? Math.max(0, Number(merged.special_tariff_amount))
@@ -51,6 +75,20 @@ export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}
 
     const {data,error}=await sb.from('registrations').update(patch).eq('id',id).select('*').single();
     if(error)throw error;
+
+    if(action==='assign_place'||action==='waitlist'||action==='matriculate'){
+      const enrollmentStatus=action==='matriculate'?'activa':action==='waitlist'?'llista d’espera':'pendent';
+      const enrollmentPatch={activity_id:data.activity_id,status:enrollmentStatus,enrolled_at:action==='matriculate'?new Date().toISOString():null};
+      const existingEnrollment=await sb.from('enrollments').select('id').eq('registration_id',id).maybeSingle();
+      if(existingEnrollment.error) throw existingEnrollment.error;
+      const enrollment=existingEnrollment.data
+        ? (await sb.from('enrollments').update(enrollmentPatch).eq('id',existingEnrollment.data.id).select('id').single()).data
+        : (await sb.from('enrollments').insert({registration_id:id,...enrollmentPatch}).select('id').single()).data;
+      if(!enrollment) throw new Error('No s’ha pogut crear la matrícula.');
+      const {error:movementError}=await sb.from('place_movements').insert({activity_id:data.activity_id,registration_id:id,movement_type:action,from_status:current.status,to_status:data.status,quantity:action==='waitlist'?0:1,reason:body.reason||null});
+      if(movementError) throw movementError;
+      if(Array.isArray(body.fees)&&enrollment) body.enrollment_id=enrollment.id;
+    }
 
     if(Array.isArray(body.fees)){
       let {data:enrollment,error:enrollmentError}=await sb.from('enrollments').select('id').eq('registration_id',id).maybeSingle();
