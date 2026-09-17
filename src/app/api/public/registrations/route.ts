@@ -89,6 +89,13 @@ export async function POST(req:Request){
     if(matchedActivity){
       record.activity_id = matchedActivity.id;
       record.activity_name = matchedActivity.name;
+    }else{
+      const isAcollida=normalizeActivity(f.activitat).includes('acollida');
+      const defaults={slug:isAcollida?'acollida-matinal-2026-2027':'robotica-2026-2027',name:isAcollida?'Acollida Matinal':'Robòtica',description:'Activitat de l’AFA Escola Sant Salvador.',courses:isAcollida?'Infantil · Primària':'1r · 2n · 3r de Primària',schedule:isAcollida?'Tots els dies · 08:00–09:15':'Dimecres · 16:00–17:30',capacity:12,active:true,price:isAcollida?30:20,member_price:isAcollida?30:15,second_child_discount:isAcollida?5:0,third_child_discount:isAcollida?8.5:0,extra_first_month:isAcollida?0:5};
+      const createdActivity=await sb.from('activities').upsert(defaults,{onConflict:'slug'}).select('id,name').single();
+      if(createdActivity.error)throw createdActivity.error;
+      record.activity_id=createdActivity.data.id;
+      record.activity_name=createdActivity.data.name;
     }
 
     const normalizedDni=normalizeDocument(f.dni);

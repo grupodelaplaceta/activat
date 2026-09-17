@@ -35,8 +35,15 @@ export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}
       const {data:activities,error:activitiesError}=await sb.from('activities').select('id,name,capacity,capacity_override,vacancies_open');
       if(activitiesError) throw activitiesError;
       const normalize=(value:string)=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
-      const activity=(activities||[]).find((candidate:any)=>activityId?candidate.id===activityId:normalize(candidate.name)===normalize(merged.activity_name));
-      if(!activity) return NextResponse.json({error:`No s’ha trobat l’activitat “${merged.activity_name}”. Revisa el nom de l’activitat a Supabase.`},{status:409});
+      let activity=(activities||[]).find((candidate:any)=>activityId?candidate.id===activityId:normalize(candidate.name)===normalize(merged.activity_name));
+      if(!activity){
+        const isAcollida=normalize(merged.activity_name).includes('acollida');
+        const slug=isAcollida?'acollida-matinal-2026-2027':'robotica-2026-2027';
+        const defaults={slug,name:isAcollida?'Acollida Matinal':'Robòtica',description:'Activitat de l’AFA Escola Sant Salvador.',courses:isAcollida?'Infantil · Primària':'1r · 2n · 3r de Primària',schedule:isAcollida?'Tots els dies · 08:00–09:15':'Dimecres · 16:00–17:30',capacity:12,active:true,price:isAcollida?30:20,member_price:isAcollida?30:15,second_child_discount:isAcollida?5:0,third_child_discount:isAcollida?8.5:0,extra_first_month:isAcollida?0:5};
+        const createdActivity=await sb.from('activities').upsert(defaults,{onConflict:'slug'}).select('id,name,capacity,capacity_override,vacancies_open').single();
+        if(createdActivity.error) throw createdActivity.error;
+        activity=createdActivity.data;
+      }
       if((action==='assign_place'||action==='matriculate')&&['admesa','matriculada'].includes(String(current.status||'').toLowerCase())&&current.place){
         return NextResponse.json({...current,fees:body.fees||[]});
       }
