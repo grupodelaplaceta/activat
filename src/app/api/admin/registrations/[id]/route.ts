@@ -79,7 +79,7 @@ export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}
       patch.status = 'Pendent d’assignació de plaça';
     }
     if((!merged.start_month || !String(merged.start_month).trim()) && (markPaid || Number(patch.paid_amount || 0) > 0)){
-      patch.start_month = (patch.payment_date || new Date().toISOString()).slice(0,7);
+      patch.start_month = '2026-10';
     }
     if(patch.status==='Pendent d’assignació de plaça' && patch.payment_date===undefined){
       patch.payment_date = new Date().toISOString().slice(0,10);

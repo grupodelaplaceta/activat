@@ -27,7 +27,6 @@ const initials = (value = "") =>
     .join("")
     .toUpperCase();
 const months = [
-  "2026-09",
   "2026-10",
   "2026-11",
   "2026-12",
@@ -55,6 +54,7 @@ const autoTotal = (record: any) =>
       Number(record.member_discount_amount || 0) -
       Number(record.sibling_discount_amount || 0),
   ) + Number(record.complements_amount || 0);
+const monthlyBase = (record: any) => Math.max(0, Number(record.base_amount || 0) - Number(record.member_discount_amount || 0) - Number(record.sibling_discount_amount || 0));
 
 async function imageData(url: string) {
   try {
@@ -198,18 +198,12 @@ export default function Gestio() {
   }
   function generateFees() {
     setSelected((current: any) => {
-      const startMonth =
-        current.start_month ||
-        months[
-          Math.min(
-            months.length - 1,
-            Math.max(0, months.indexOf(new Date().toISOString().slice(0, 7))),
-          )
-        ] ||
-        months[0];
-      const total = current.special_tariff_enabled
+      const requestedStart = current.start_month || months[0];
+      const startMonth = requestedStart < months[0] ? months[0] : requestedStart;
+      const monthlyAmount = current.special_tariff_enabled
         ? Number(current.special_tariff_amount || 0)
-        : autoTotal(current);
+        : monthlyBase(current);
+      const firstMonthExtra = current.special_tariff_enabled ? 0 : Number(current.complements_amount || 0);
       const paid = Number(current.paid_amount || 0);
       const fees = months
         .filter((month) => month >= startMonth)
@@ -217,11 +211,17 @@ export default function Gestio() {
           const old = current.fees.find(
             (fee: any) => String(fee.month).slice(0, 7) === month,
           );
-          if (old) return old;
           const isFirst = month === startMonth;
+          const total = monthlyAmount + (isFirst ? firstMonthExtra : 0);
+          if (old) return {
+            ...old,
+            amount: monthlyAmount,
+            total: old.status === "pagada" ? old.total : total,
+            due_date: dueDate(month),
+          };
           return {
             month: `${month}-01`,
-            amount: total,
+            amount: monthlyAmount,
             discount: 0,
             total,
             due_date: dueDate(month),
@@ -430,28 +430,29 @@ export default function Gestio() {
     doc.setTextColor(113, 107, 124);
     doc.text(`Representant: ${record.representative_name || "—"}`, 23, 76);
     doc.text(`Activitat: ${record.activity_name || "—"}`, 23, 84);
-    doc.text(`Mitjà de pagament: ${record.payment_method || "Efectiu"}`, 23, 92);
+    doc.text(`Concepte: Quota ${String(fee.month).slice(0, 7)}${Number(fee.total || 0) > Number(fee.amount || 0) ? " + material del primer mes" : ""}`, 23, 92);
+    doc.text(`Mitjà de pagament: ${record.payment_method || "Efectiu"}`, 23, 100);
     doc.setTextColor(23, 19, 31);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
-    doc.text("Període", 16, 119);
-    doc.text("Quota mensual", 16, 131);
-    doc.text("Pagada el", 16, 143);
+    doc.text("Període", 16, 127);
+    doc.text("Quota mensual", 16, 139);
+    doc.text("Pagada el", 16, 151);
     doc.setTextColor(91, 33, 182);
     doc.setFontSize(13);
-    doc.text(String(fee.month).slice(0, 7), 194, 119, { align: "right" });
-    doc.text(money(amount), 194, 131, { align: "right" });
-    doc.text(String(paidAt).slice(0, 10), 194, 143, { align: "right" });
+    doc.text(String(fee.month).slice(0, 7), 194, 127, { align: "right" });
+    doc.text(money(amount), 194, 139, { align: "right" });
+    doc.text(String(paidAt).slice(0, 10), 194, 151, { align: "right" });
     doc.setDrawColor(231, 228, 235);
-    doc.line(16, 151, 194, 151);
+    doc.line(16, 159, 194, 159);
     doc.setTextColor(113, 107, 124);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(9);
-    doc.text(`Data límit del període: ${deadline}`, 16, 162);
+    doc.text(`Data límit del període: ${deadline}`, 16, 170);
     if (late) {
       doc.setTextColor(161, 33, 33);
       doc.setFont("helvetica", "bold");
-      doc.text("AVÍS: pagament registrat fora de termini.", 16, 173);
+      doc.text("AVÍS: pagament registrat fora de termini.", 16, 181);
     }
     pdfFooter(doc, record.code);
     doc.save(`rebut-${record.code}-${String(fee.month).slice(0, 7)}.pdf`);
