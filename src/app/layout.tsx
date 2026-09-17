@@ -28,7 +28,7 @@ export default function RootLayout({children}:{children:React.ReactNode}){
     {children}
     <footer className="footer">
       <div><strong>ACTIVA’T</strong><span> · Secretaria Virtual de l’AFA Escola Sant Salvador</span></div>
-      <div>Informació · Documents · Privacitat</div>
+      <div><Link href="/legal">Normes · Pagaments · Termes · Privacitat</Link></div>
     </footer>
   </>
 }

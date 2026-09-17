@@ -13,6 +13,7 @@ alter table activities add column if not exists capacity_override integer;
 alter table registrations add column if not exists special_tariff_enabled boolean not null default false;
 alter table registrations add column if not exists special_tariff_amount numeric(10,2);
 alter table registrations add column if not exists special_tariff_label text default '';
+alter table registrations add column if not exists legal_acceptances jsonb not null default '{}'::jsonb;
 
 create index if not exists registrations_code_idx on registrations(code);
 create index if not exists registrations_activity_idx on registrations(activity_id);
