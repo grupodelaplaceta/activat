@@ -94,7 +94,7 @@ export default async function Fitxa({params}:{params:Promise<{slug:string}>}){
         <div className="sidePriceAlt"><b>{a.memberPrice.toFixed(2).replace('.',',')} €</b><span>per a socis AFA</span></div>
         <div className="sideFacts"><div><span>Horari</span><b>{a.schedule}</b></div><div><span>Cursos</span><b>{a.courses}</b></div></div>
         <Link className="btn primary" style={{width:'100%',marginTop:15}} href={`/preinscripcio?activitat=${encodeURIComponent(a.name)}`}>Preinscriure’m →</Link>
-        <Link className="btn secondary" style={{width:'100%',marginTop:8}} href="/activitats">← Tornar a activitats</Link>
+        <Link className="btn secondary" style={{width:'100%',marginTop:8}} href="/">← Tornar a l’inici</Link>
         <p className="muted small sideNoAccount">No cal crear cap compte.</p>
       </aside>
     </div>

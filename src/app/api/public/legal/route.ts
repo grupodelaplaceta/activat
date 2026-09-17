@@ -9,4 +9,30 @@ const documents=[
   {id:'privacitat',title:'Política de privacitat',file:'POLITIQUES PRIVADESA ACTIVAT.MD'}
 ];
 
-export async function GET(){const result=await Promise.all(documents.map(async document=>({id:document.id,title:document.title,text:await fs.readFile(path.join(process.cwd(),document.file),'utf8')})));return NextResponse.json({documents:result,version:'setembre de 2026'});}
+async function readDocument(file:string){
+  const candidates=[
+    path.join(process.cwd(), file),
+    path.join(process.cwd(), 'public', file),
+    path.join(process.cwd(), 'src', file),
+    path.join(process.cwd(), 'docs', file)
+  ];
+
+  for (const candidate of candidates) {
+    try {
+      return await fs.readFile(candidate, 'utf8');
+    } catch {
+      // intenta el següent candidat
+    }
+  }
+
+  return 'Aquest document no està disponible temporalment.';
+}
+
+export async function GET(){
+  const result=await Promise.all(documents.map(async document=>({
+    id: document.id,
+    title: document.title,
+    text: await readDocument(document.file)
+  })));
+  return NextResponse.json({documents: result, version:'setembre de 2026'});
+}

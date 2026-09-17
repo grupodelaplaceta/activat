@@ -1,2 +1,6 @@
-import Link from 'next/link'; import {getActivities} from '@/lib/activities';
-export default async function Activitats(){const activities=await getActivities();return <main className="container"><section className="hero"><span className="eyebrow">Oferta d’activitats</span><h1>Activitats</h1><p>Consulta tota la informació abans d’iniciar una preinscripció o reserva.</p></section><div className="grid">{activities.map((a:any)=>{const pct=Math.round(a.occupied/a.capacity*100);const highDemand=pct>=80;return <article className="card activityCard" key={a.id}><div className="activityCover" style={a.image?{backgroundImage:`url(${a.image})`}:undefined}><div className="coverMark">{a.name.toLowerCase().includes('rob')?'✦':'◌'}</div></div><div className="activityBody"><div className="row space"><h2>{a.name}</h2><span className={`pill ${highDemand?'demandPill':'ok'}`}>{highDemand?'🔥 Alta demanda':'Places obertes'}</span></div><p className="muted small">{a.description}</p><div className="meta"><span>{a.courses}</span><span>{a.schedule}</span></div><div className="capacity"><div className="capacityHead"><span>{a.capacity} places totals</span><b>{highDemand?'🔥 Alta demanda':'Disponibilitat en curs'}</b></div><div className="bar"><i style={{width:`${pct}%`}}/></div></div><div className="row space"><strong>{Number(a.price||0).toFixed(2).replace('.',',')} €</strong><Link className="btn primary" href={`/activitats/${a.slug}`}>Obrir fitxa</Link></div></div></article>})}</div></main>}
+import {redirect} from 'next/navigation';
+
+export default function Activitats(){
+  redirect('/');
+}
+

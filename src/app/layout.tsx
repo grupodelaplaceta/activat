@@ -19,7 +19,7 @@ export default function RootLayout({children}:{children:React.ReactNode}){
         <input className="navToggle" type="checkbox" id="nav-toggle" />
         <label className="navMenuButton" htmlFor="nav-toggle" aria-label="Obrir el menú"><span></span><span></span><span></span></label>
         <div className="navlinks">
-          <Link href="/activitats">Veure activitats</Link>
+          <Link href="/#oferta">Activitats</Link>
           <Link href="/consulta">Consultar o actualitzar</Link>
           <Link className="navCta" href="/gestio">Accés Secretaria <span>↗</span></Link>
         </div>
