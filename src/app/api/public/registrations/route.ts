@@ -65,10 +65,15 @@ export async function POST(req:Request){
       record.activity_name = matchedActivity.name;
     }
 
-    const {error}=await sb.from('registrations').insert(record);
+    const {data:created,error}=await sb.from('registrations').insert(record).select('id,code,total_amount').single();
     if(error)throw error;
-    return NextResponse.json({code:record.code,total});
-  }catch{
-    return NextResponse.json({code:record.code,total,demo:true});
+    return NextResponse.json({code:created.code,total:created.total_amount});
+  }catch(error){
+    console.error('public registration insert failed',error);
+    const details=error&&typeof error==='object'&&'message' in error?String((error as {message:string}).message):'';
+    return NextResponse.json({
+      error:'No s’ha pogut desar la preinscripció. Revisa la connexió amb Supabase i que el schema estigui aplicat.',
+      details:process.env.NODE_ENV==='development'?details:undefined,
+    },{status:500});
   }
 }
