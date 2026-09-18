@@ -454,9 +454,9 @@ export default function Gestio() {
     const paidAt = fee.paid_at || new Date().toISOString().slice(0, 10);
     const deadline = fee.due_date || dueDate(String(fee.month).slice(0, 7));
     const late = paidAt > deadline;
-    pdfHeader(doc, logo, "REBUT DE QUOTA MENSUAL", `Justificant ${record.code} · ${String(fee.month).slice(0, 7)}`);
+    pdfHeader(doc, logo, "REBUT DE PAGAMENT · CÒPIA AFA", `Codi ${record.code} · Període ${String(fee.month).slice(0, 7)}`);
     doc.setFillColor(245, 247, 250);
-    doc.roundedRect(16, 57, 178, 42, 4, 4, "F");
+    doc.roundedRect(16, 57, 178, 48, 4, 4, "F");
     doc.setTextColor(23, 19, 31);
     doc.setFont("Outfit", "bold");
     doc.setFontSize(11);
@@ -468,11 +468,12 @@ export default function Gestio() {
     doc.text(`Activitat: ${record.activity_name || "—"}`, 23, 84);
     doc.text(`Concepte: Quota ${String(fee.month).slice(0, 7)}${Number(fee.total || 0) > Number(fee.amount || 0) ? " + material del primer mes" : ""}`, 23, 92);
     doc.text(`Mitjà de pagament: ${record.payment_method || "Efectiu"}`, 23, 100);
+    doc.text(`Concepte: quota corresponent a octubre i període registrat`, 23, 106);
     doc.setTextColor(23, 19, 31);
     doc.setFont("Outfit", "bold");
     doc.setFontSize(11);
     doc.text("Període", 16, 127);
-    doc.text("Quota mensual", 16, 139);
+    doc.text("Import rebut", 16, 139);
     doc.text("Pagada el", 16, 151);
     doc.setTextColor(201, 0, 223);
     doc.setFontSize(13);
@@ -485,6 +486,7 @@ export default function Gestio() {
     doc.setFont("Outfit", "normal");
     doc.setFontSize(9);
     doc.text(`Data límit del període: ${deadline}`, 16, 170);
+    doc.text("Aquest rebut és el justificant definitiu del pagament registrat per Secretaria.", 16, 178);
     if (late) {
       doc.setTextColor(161, 33, 33);
       doc.setFont("Outfit", "bold");
