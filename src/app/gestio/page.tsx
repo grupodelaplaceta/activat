@@ -73,8 +73,14 @@ async function imageData(url: string) {
 
 function pdfHeader(doc: jsPDF, logo: string, title: string, subtitle: string) {
   const width = 210;
+  const blue = [21, 158, 216] as const;
+  const pink = [201, 0, 223] as const;
+  const orange = [255, 100, 0] as const;
   doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, width, 27, "F");
+  doc.setFillColor(...blue); doc.rect(0, 0, 70, 2, "F");
+  doc.setFillColor(...pink); doc.rect(70, 0, 70, 2, "F");
+  doc.setFillColor(...orange); doc.rect(140, 0, 70, 2, "F");
   if (logo) {
     try { doc.addImage(logo, "PNG", 16, 5, 22, 15); } catch { /* logo is optional */ }
   }
@@ -88,7 +94,7 @@ function pdfHeader(doc: jsPDF, logo: string, title: string, subtitle: string) {
   doc.text("ACTIVA’T · Secretaria Virtual · Curs 2026–2027", 44, 18);
   doc.setDrawColor(231, 228, 235);
   doc.line(16, 25, 194, 25);
-  doc.setTextColor(91, 33, 182);
+  doc.setTextColor(...blue);
   doc.setFont("Outfit", "bold");
   doc.setFontSize(17);
   doc.text(title, 16, 39);
@@ -102,7 +108,7 @@ function pdfFooter(doc: jsPDF, code: string) {
   const pages = doc.getNumberOfPages();
   for (let page = 1; page <= pages; page += 1) {
     doc.setPage(page);
-    doc.setDrawColor(231, 228, 235);
+    doc.setDrawColor(217, 221, 229);
     doc.line(16, 286, 194, 286);
     doc.setTextColor(113, 107, 124);
     doc.setFont("Outfit", "normal");
@@ -205,7 +211,6 @@ export default function Gestio() {
         ? Number(current.special_tariff_amount || 0)
         : monthlyBase(current);
       const firstMonthExtra = current.special_tariff_enabled ? 0 : Number(current.complements_amount || 0);
-      const paid = Number(current.paid_amount || 0);
       const fees = months
         .filter((month) => month >= startMonth)
         .map((month) => {
@@ -226,17 +231,14 @@ export default function Gestio() {
             discount: 0,
             total,
             due_date: dueDate(month),
-            status: isFirst && paid >= total ? "pagada" : "pendent",
-            paid_at:
-              isFirst && paid >= total
-                ? current.payment_date || new Date().toISOString()
-                : null,
+            status: "pendent",
+            paid_at: null,
           };
         });
       return { ...current, fees };
     });
   }
-  async function save(markPaid = false) {
+  async function save(markPaid = false, feesOverride?: any[]) {
     if (!selected) return;
     const activity = (data?.activities || []).find(
       (item: any) =>
@@ -257,7 +259,7 @@ export default function Gestio() {
     }
 
     setSaving(true);
-    const payload = { ...selected, mark_paid: markPaid, fees: selected.fees };
+    const payload = { ...selected, mark_paid: markPaid, fees: feesOverride || selected.fees };
     const response = await fetch(`/api/admin/registrations/${selected.id}`, {
       method: "PATCH",
       headers: {
@@ -279,6 +281,37 @@ export default function Gestio() {
       ),
     }));
     setSelected({ ...json, fees: json.fees || selected.fees });
+    return { ...json, fees: json.fees || selected.fees };
+  }
+  async function registerPaymentAndReceipt() {
+    if (!selected) return;
+    const received = Number(selected.paid_amount || 0);
+    const due = Number(selected.total_amount || 0);
+    if (received < due) {
+      setError(`L’import rebut (${money(received)}) no cobreix la quota d’octubre (${money(due)}).`);
+      return;
+    }
+    const paymentDate = selected.payment_date || new Date().toISOString().slice(0, 10);
+    const existingFees = selected.fees?.length
+      ? selected.fees
+      : [{
+          month: "2026-10-01",
+          amount: monthlyBase(selected),
+          discount: 0,
+          total: due,
+          due_date: dueDate("2026-10"),
+          status: "pendent",
+        }];
+    const fees = existingFees.map((fee: any) =>
+      String(fee.month).slice(0, 7) === "2026-10"
+        ? { ...fee, status: "pagada", paid_at: new Date(`${paymentDate}T12:00:00`).toISOString() }
+        : fee,
+    );
+    const saved = await save(true, fees);
+    if (saved) {
+      const octoberFee = (saved.fees || fees).find((fee: any) => String(fee.month).slice(0, 7) === "2026-10");
+      if (octoberFee) await receipt(saved, octoberFee);
+    }
   }
   async function placementAction(record: any, action: "assign_place" | "matriculate" | "waitlist") {
     if (placementBusy === record.id) return;
@@ -335,7 +368,7 @@ export default function Gestio() {
       y += 5;
     });
     y += 8;
-    doc.setTextColor(91, 33, 182); doc.setFont("Outfit", "bold"); doc.setFontSize(10); doc.text(`${rows.length} expedients en aquesta llista`, 16, y); y += 10;
+    doc.setTextColor(21, 158, 216); doc.setFont("Outfit", "bold"); doc.setFontSize(10); doc.text(`${rows.length} expedients en aquesta llista`, 16, y); y += 10;
     rows.forEach((record: any, index: number) => {
       if (y > 275) { doc.addPage(); pdfHeader(doc, logo, `LLISTA · ${title.toUpperCase()}`, `Continuació · ${new Date().toLocaleDateString("ca-ES")}`); y = 60; }
       doc.setFont("Outfit", "bold"); doc.text(`${index + 1}. ${record.student_name || "—"}`, 16, y);
@@ -422,7 +455,7 @@ export default function Gestio() {
     const deadline = fee.due_date || dueDate(String(fee.month).slice(0, 7));
     const late = paidAt > deadline;
     pdfHeader(doc, logo, "REBUT DE QUOTA MENSUAL", `Justificant ${record.code} · ${String(fee.month).slice(0, 7)}`);
-    doc.setFillColor(243, 237, 255);
+    doc.setFillColor(245, 247, 250);
     doc.roundedRect(16, 57, 178, 42, 4, 4, "F");
     doc.setTextColor(23, 19, 31);
     doc.setFont("Outfit", "bold");
@@ -441,12 +474,12 @@ export default function Gestio() {
     doc.text("Període", 16, 127);
     doc.text("Quota mensual", 16, 139);
     doc.text("Pagada el", 16, 151);
-    doc.setTextColor(91, 33, 182);
+    doc.setTextColor(201, 0, 223);
     doc.setFontSize(13);
     doc.text(String(fee.month).slice(0, 7), 194, 127, { align: "right" });
     doc.text(money(amount), 194, 139, { align: "right" });
     doc.text(String(paidAt).slice(0, 10), 194, 151, { align: "right" });
-    doc.setDrawColor(231, 228, 235);
+    doc.setDrawColor(217, 221, 229);
     doc.line(16, 159, 194, 159);
     doc.setTextColor(113, 107, 124);
     doc.setFont("Outfit", "normal");
@@ -515,7 +548,7 @@ export default function Gestio() {
     const margin = 16;
     pdfHeader(doc, logo, "FULL DE PREINSCRIPCIÓ", `${record.code} · ${String(record.created_at || new Date().toISOString()).slice(0, 10)}`);
     const section = (title: string, y: number) => {
-      doc.setTextColor(91, 33, 182); doc.setFont("Outfit", "bold"); doc.setFontSize(11); doc.text(title, margin, y);
+      doc.setTextColor(21, 158, 216); doc.setFont("Outfit", "bold"); doc.setFontSize(11); doc.text(title, margin, y);
       doc.setDrawColor(231, 228, 235); doc.line(margin, y + 3, 194, y + 3); return y + 12;
     };
     const line = (label: string, value: string, y: number) => {
@@ -1142,11 +1175,6 @@ export default function Gestio() {
                     >
                       {fee.status === "Nula" ? "Reactivar" : "Nula"}
                     </button>
-                    {fee.status !== "Nula" && fee.status !== "pagada" && (
-                      <button className="btn secondary" onClick={() => markFeePaid(fee, index)}>
-                        Marcar pagada
-                      </button>
-                    )}
                     {fee.status === "pagada" && (
                       <button className="btn primary" onClick={() => receipt(selected, fee)}>
                         Rebut PDF
@@ -1165,11 +1193,11 @@ export default function Gestio() {
                 </button>
                 {!selected.payment_date && (
                   <button
-                    className="btn secondary"
-                    onClick={() => save(true)}
+                    className="btn primary"
+                    onClick={registerPaymentAndReceipt}
                     disabled={saving}
                   >
-                    Registrar pagament
+                    Registrar pagament i generar rebut PDF
                   </button>
                 )}
               </div>

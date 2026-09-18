@@ -1,5 +1,6 @@
 import {NextResponse} from 'next/server';
 import {adminSupabase} from '@/lib/supabase';
+import {DEFINITIVE_ACTIVITIES,FIRST_PAYMENT_MONTH} from '@/lib/activity-config';
 
 function makeCode(){
   return `AFA-${new Date().getFullYear().toString().slice(-2)}-${Math.random().toString(36).slice(2,5).toUpperCase()}-${Math.floor(100+Math.random()*900)}`;
@@ -32,6 +33,10 @@ export async function POST(req:Request){
   if(!f.alumne||!f.tutor||!f.email||!f.activitat){
     return NextResponse.json({error:'Falten dades obligatòries.'},{status:400});
   }
+  const activityConfig=DEFINITIVE_ACTIVITIES[f.activitat as keyof typeof DEFINITIVE_ACTIVITIES];
+  if(!activityConfig){
+    return NextResponse.json({error:'Aquesta activitat no està disponible per al curs 2026–2027.'},{status:400});
+  }
 
   const total=Math.max(0,Number(f.quota||0)-Number(f.descompte||0))+Number(f.complements||0);
   const record={
@@ -61,6 +66,7 @@ export async function POST(req:Request){
     data_info_accepted:Boolean(f.data_info_accepted),
     emergency_accepted:Boolean(f.emergency_accepted),
     image_consent:f.imatge==='si',
+    start_month:f.start_month||FIRST_PAYMENT_MONTH,
     base_amount:Number(f.quota||0),
     discount_amount:Number(f.descompte||0),
     complements_amount:Number(f.complements||0),
@@ -81,7 +87,7 @@ export async function POST(req:Request){
       return NextResponse.json({error:'Falten NEXT_PUBLIC_SUPABASE_URL o SUPABASE_SERVICE_ROLE_KEY a la configuració del servidor.'},{status:500});
     }
     const sb=adminSupabase();
-    const {data:activities,error:activityError}=await sb.from('activities').select('id,name,slug').eq('active',true);
+    const {data:activities,error:activityError}=await sb.from('activities').select('id,name,slug').eq('active',true).in('name',Object.keys(DEFINITIVE_ACTIVITIES));
     if(activityError) console.warn('activity lookup failed during registration',activityError);
     const matchedActivity=(activities||[]).find((activity:any)=>
       activity.name===f.activitat || activity.slug===String(f.activitat).toLowerCase().replace(/\s+/g,'-')
@@ -90,8 +96,7 @@ export async function POST(req:Request){
       record.activity_id = matchedActivity.id;
       record.activity_name = matchedActivity.name;
     }else{
-      const isAcollida=normalizeActivity(f.activitat).includes('acollida');
-      const defaults={slug:isAcollida?'acollida-matinal-2026-2027':'robotica-2026-2027',name:isAcollida?'Acollida Matinal':'Robòtica',description:'Activitat de l’AFA Escola Sant Salvador.',courses:isAcollida?'Infantil · Primària':'1r · 2n · 3r de Primària',schedule:isAcollida?'Tots els dies · 08:00–09:15':'Dimecres · 16:00–17:30',capacity:12,active:true,price:isAcollida?30:20,member_price:isAcollida?30:15,second_child_discount:isAcollida?5:0,third_child_discount:isAcollida?8.5:0,extra_first_month:isAcollida?0:5};
+      const defaults={slug:activityConfig.slug,name:f.activitat,description:'Activitat de l’AFA Escola Sant Salvador.',courses:activityConfig.courses,schedule:activityConfig.schedule,capacity:activityConfig.capacity,active:true,price:activityConfig.nonMember,member_price:activityConfig.member,second_child_discount:activityConfig.second,third_child_discount:activityConfig.third,extra_first_month:activityConfig.extra};
       const createdActivity=await sb.from('activities').upsert(defaults,{onConflict:'slug'}).select('id,name').single();
       if(createdActivity.error)throw createdActivity.error;
       record.activity_id=createdActivity.data.id;

@@ -87,3 +87,25 @@ create index if not exists monthly_fees_month_idx on monthly_fees(month);
 create index if not exists place_movements_activity_idx on place_movements(activity_id);
 -- Public reads/writes are intentionally NOT exposed through anon policies. The application routes use the server-only service role.
 -- Before production, add your preferred RLS policies and admin authentication layer.
+
+-- Curs 2026-2027: only these two activities are definitive. The first
+-- payment period is October 2026 and remains pending until Secretaria records it.
+update activities set active=false
+where slug not in ('robotica-2026-2027','acollida-matinal-2026-2027');
+
+insert into activities (slug,name,description,courses,schedule,capacity,active,price,member_price,second_child_discount,third_child_discount,extra_first_month)
+values
+  ('robotica-2026-2027','Robòtica','Activitat extraescolar de l''AFA Escola Sant Salvador.','1r · 2n · 3r de Primària','Dimecres · 16:00–17:30 (berenar 16:00–16:45)',12,true,20,15,0,0,5),
+  ('acollida-matinal-2026-2027','Acollida Matinal','Servei d''acollida matinal de l''AFA Escola Sant Salvador.','Infantil · Primària','Tots els dies · 08:00–09:15',12,true,30,30,5,8.5,0)
+on conflict (slug) do update set
+  name=excluded.name,
+  description=excluded.description,
+  courses=excluded.courses,
+  schedule=excluded.schedule,
+  capacity=excluded.capacity,
+  active=excluded.active,
+  price=excluded.price,
+  member_price=excluded.member_price,
+  second_child_discount=excluded.second_child_discount,
+  third_child_discount=excluded.third_child_discount,
+  extra_first_month=excluded.extra_first_month;

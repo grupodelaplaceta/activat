@@ -30,6 +30,13 @@ export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}
     if(readError) throw readError;
 
     const merged={...current,...patch};
+    if(markPaid){
+      const received=Number(merged.paid_amount || 0);
+      const due=Number(current.total_amount || 0);
+      if(received<due){
+        return NextResponse.json({error:`L’import rebut (${received.toFixed(2)} €) no cobreix la quota (${due.toFixed(2)} €).`},{status:400});
+      }
+    }
     if(action==='assign_place'||action==='waitlist'||action==='matriculate'){
       const activityId=merged.activity_id;
       const {data:activities,error:activitiesError}=await sb.from('activities').select('id,name,capacity,capacity_override,vacancies_open');
@@ -84,18 +91,9 @@ export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}
     patch.total_amount = calculatedTotal;
     patch.discount_amount = Math.max(0, Number(merged.member_discount_amount || 0) + Number(merged.sibling_discount_amount || 0));
 
-    if(markPaid) patch.paid_amount = patch.total_amount;
-    if(patch.paid_amount!==undefined && patch.paid_amount>0 && patch.payment_date===undefined){
-      patch.payment_date = new Date().toISOString().slice(0,10);
-      patch.status = 'Pendent d’assignació de plaça';
-    }
-    if((!merged.start_month || !String(merged.start_month).trim()) && (markPaid || Number(patch.paid_amount || 0) > 0)){
+    if((!merged.start_month || !String(merged.start_month).trim()) && markPaid){
       patch.start_month = '2026-10';
     }
-    if(patch.status==='Pendent d’assignació de plaça' && patch.payment_date===undefined){
-      patch.payment_date = new Date().toISOString().slice(0,10);
-    }
-
     const {data,error}=await sb.from('registrations').update(patch).eq('id',id).select('*').single();
     if(error)throw error;
 
