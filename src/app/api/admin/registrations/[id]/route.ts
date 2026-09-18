@@ -1,6 +1,35 @@
 import {NextRequest,NextResponse} from 'next/server';
 import {adminSupabase} from '@/lib/supabase';
 
+export async function DELETE(req:NextRequest,{params}:{params:Promise<{id:string}>}){
+  if(req.headers.get('x-activat-admin-secret')!==process.env.ACTIVAT_ADMIN_SECRET)return NextResponse.json({error:'No autoritzat.'},{status:401});
+  const {id}=await params;
+  try{
+    const sb=adminSupabase();
+    const {data:enrollments,error:enrollmentReadError}=await sb.from('enrollments').select('id').eq('registration_id',id);
+    if(enrollmentReadError)throw enrollmentReadError;
+    const enrollmentIds=(enrollments||[]).map((item:any)=>item.id);
+    if(enrollmentIds.length){
+      const {error:feesError}=await sb.from('monthly_fees').delete().in('enrollment_id',enrollmentIds);
+      if(feesError)throw feesError;
+      const {error:paymentsByEnrollmentError}=await sb.from('payments').delete().in('enrollment_id',enrollmentIds);
+      if(paymentsByEnrollmentError)throw paymentsByEnrollmentError;
+      const {error:enrollmentsError}=await sb.from('enrollments').delete().in('id',enrollmentIds);
+      if(enrollmentsError)throw enrollmentsError;
+    }
+    const {error:paymentsError}=await sb.from('payments').delete().eq('registration_id',id);
+    if(paymentsError)throw paymentsError;
+    const {error:movementsError}=await sb.from('place_movements').delete().eq('registration_id',id);
+    if(movementsError)throw movementsError;
+    const {error}=await sb.from('registrations').delete().eq('id',id);
+    if(error)throw error;
+    return NextResponse.json({ok:true,id});
+  }catch(error){
+    console.error('admin registration delete failed',error);
+    return NextResponse.json({error:'No s’ha pogut eliminar la preinscripció.'},{status:500});
+  }
+}
+
 export async function PATCH(req:NextRequest,{params}:{params:Promise<{id:string}>}){
   if(req.headers.get('x-activat-admin-secret')!==process.env.ACTIVAT_ADMIN_SECRET)return NextResponse.json({error:'No autoritzat.'},{status:401});
   const {id}=await params; const body=await req.json();

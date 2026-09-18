@@ -344,6 +344,15 @@ export default function Gestio() {
       setPlacementBusy("");
     }
   }
+  async function deleteRegistration(record: any) {
+    if(!record?.id || !window.confirm(`Eliminar definitivament la preinscripció de ${record.student_name || "aquest alumne/a"}?`))return;
+    setError("");
+    const response=await fetch(`/api/admin/registrations/${record.id}`,{method:"DELETE",headers:{"x-activat-admin-secret":secret}});
+    const json=await response.json();
+    if(!response.ok){setError(json.error||"No s’ha pogut eliminar la preinscripció.");return;}
+    setData((current:any)=>({...current,registrations:current.registrations.filter((item:any)=>item.id!==record.id)}));
+    if(selected?.id===record.id)setSelected(undefined);
+  }
   async function downloadList(format: "csv" | "pdf") {
     const title = view === "Llistes d’espera" ? "Llista d’espera" : view === "Matrícules" ? "Matrícules" : "Places i vacants";
     if (format === "csv") {
@@ -543,7 +552,33 @@ export default function Gestio() {
     });
     if (response.ok) load();
   };
+  async function registrationPdfHtml(record: any) {
+    const doc = new jsPDF({ unit: "mm", format: "a4" });
+    await useOutfit(doc);
+    const logo = await imageData(AFA_LOGO);
+    const M=15,W=210,ink="#16181d",muted="#667085",line="#b8bdc7",blue="#159ed8",soft="#f5f7fa";
+    const text=(value:any)=>String(value||"—");
+    const heavy=(value:any,x:number,y:number,options?:any)=>{doc.text(value,x,y,options);doc.text(value,x+0.08,y,options)};
+    const date=(value:any)=>{const parts=String(value||"").slice(0,10).split("-");return parts.length===3?`${parts[2]}/${parts[1]}/${parts[0]}`:text(value)};
+    const header=(title:string,subtitle:string)=>{doc.setFillColor(255,255,255);doc.rect(0,0,W,297,"F");doc.setFillColor(21,158,216);doc.rect(0,0,70,2,"F");doc.setFillColor(201,0,223);doc.rect(70,0,70,2,"F");doc.setFillColor(255,100,0);doc.rect(140,0,70,2,"F");if(logo){try{doc.addImage(logo,"PNG",M,7,22,15)}catch{}}doc.setTextColor(ink);doc.setFont("Outfit","black");doc.setFontSize(14);heavy("AFA Escola Sant Salvador",M+28,13);doc.setFont("Outfit","normal");doc.setFontSize(7.5);doc.setTextColor(muted);doc.text("ACTIVA’T · Secretaria Virtual · Curs 2026–2027",M+28,18);doc.setDrawColor("#222222");doc.line(M,27,W-M,27);doc.setTextColor(ink);doc.setFont("Outfit","black");doc.setFontSize(15);heavy(title,M,38);doc.setFont("Outfit","normal");doc.setFontSize(8);doc.setTextColor(muted);doc.text(subtitle,M,44);doc.text(`Codi: ${record.code}`,W-M,44,{align:"right"})};
+    const footer=()=>{doc.setDrawColor(line);doc.line(M,284,W-M,284);doc.setTextColor(muted);doc.setFont("Outfit","normal");doc.setFontSize(7);doc.text(`AFA Escola Sant Salvador · contacte@afaescolasantsalvador.org · ${record.code}`,M,290)};
+    const section=(title:string,y:number)=>{doc.setTextColor(ink);doc.setFont("Outfit","black");doc.setFontSize(10.5);heavy(title,M,y);doc.setDrawColor("#999999");doc.line(M,y+2,W-M,y+2);return y+9};
+    const field=(label:string,value:any,x:number,y:number,w:number,h=12)=>{doc.setDrawColor(line);doc.setFillColor(255,255,255);doc.roundedRect(x,y,w,h,1.5,1.5,"FD");doc.setTextColor(muted);doc.setFont("Outfit","black");doc.setFontSize(6.8);heavy(label.toUpperCase(),x+3,y+4);doc.setTextColor(ink);doc.setFont("Outfit","normal");doc.setFontSize(8);doc.text(doc.splitTextToSize(text(value),w-6).slice(0,2),x+3,y+8)};
+    const people=(items:any[],empty:string)=>items?.length?items.map(item=>[item.name||item.nom,item.phone||item.telefon,item.relation||item.relacio].filter(Boolean).join(" · ")).join("\n"):empty;
+    header("FULL DE PREINSCRIPCIÓ D’ACTIVITAT","Còpia administrativa · Curs 2026–2027");let y=56;
+    y=section("1. DADES DE L’ACTIVITAT I DE L’ALUMNE/A",y);field("Activitat",record.activity_name,M,y,88);field("Curs / grup",`${record.course||"—"} · ${record.group_name||"—"}`,105,y,90);y+=15;field("Nom i cognoms",record.student_name,M,y,88);field("Data de naixement",date(record.birth_date),105,y,90);y+=15;field("Al·lèrgies / informació rellevant",record.allergies||"Cap informació indicada",M,y,190);y+=15;field("Condició NESE",record.nese==="si"?"Sí":"No",M,y,88);field("Observacions NESE",record.nese_detail||"—",105,y,90,15);y+=20;
+    y=section("2. DADES DEL REPRESENTANT LEGAL",y);field("Nom i cognoms",record.representative_name,M,y,88);field("DNI/NIE/passaport",record.dni,105,y,90);y+=15;field("Telèfon",record.phone,M,y,88);field("Correu electrònic",record.email,105,y,90);y+=15;field("Adreça",`${record.address||"—"}, ${record.postal_code||""} ${record.city||""}`,M,y,190);y+=20;
+    y=section("3. PERSONES AUTORITZADES I CONTACTES",y);field("Persones autoritzades per recollir",people(record.authorized_people,"Cap persona indicada"),M,y,88,23);field("Contactes d’emergència",people(record.emergency_contacts,"Cap contacte indicat"),105,y,90,23);y+=31;
+    footer();doc.addPage();header("FULL DE PREINSCRIPCIÓ D’ACTIVITAT","Continuació · Còpia administrativa · Curs 2026–2027");y=56;
+    y=section("4. CONDICIONS ECONÒMIQUES · PERÍODE OCTUBRE 2026",y);field("Quota base",money(record.base_amount),M,y,58);field("Descompte",money(record.discount_amount),78,y,65);field("Material",money(record.complements_amount),148,y,47);y+=15;field("Import a abonar",money(record.total_amount),M,y,88);field("Estat pagament",record.payment_date?"Pagat":"Pendent",105,y,90);y+=18;doc.setFillColor(soft);doc.roundedRect(M,y,190,17,2,2,"F");doc.setTextColor(blue);doc.setFont("Outfit","black");doc.setFontSize(8);doc.text("QUOTA D’OCTUBRE · ESTAT ADMINISTRATIU",M+4,y+6);doc.setTextColor(ink);doc.setFont("Outfit","black");doc.setFontSize(14);doc.text(money(record.total_amount),W-M-4,y+13,{align:"right"});y+=27;
+    y=section("5. DECLARACIONS I AUTORITZACIONS",y);doc.setTextColor(ink);doc.setFont("Outfit","normal");doc.setFontSize(7.8);for(const item of ["La persona signant declara que les dades facilitades són certes i que té capacitat per autoritzar la participació de l’alumne/a.","Accepta les normes de funcionament de l’activitat, els horaris i les instruccions de l’organització.","La informació d’imatge és separada i voluntària; no autoritzar-la no impedeix la participació.","En cas d’incidència o urgència, l’AFA podrà contactar amb les persones indicades i adoptar les mesures raonables de protecció."]){const lines=doc.splitTextToSize(`• ${item}`,190);doc.text(lines,M,y);y+=lines.length*3.7+2}
+    y=section("6. SIGNATURES",y);field("Representant legal",record.representative_name,M,y,88,17);field("Data",date(record.created_at),105,y,90,17);y+=21;if(record.signature_data){try{doc.addImage(record.signature_data,"PNG",M,y,58,20)}catch{}}doc.line(M,y+21,M+78,y+21);doc.line(112,y+21,190,y+21);doc.setTextColor(muted);doc.setFontSize(7);doc.text("Signatura representant legal",M,y+26);doc.text("Signatura responsable AFA",112,y+26);footer();
+    let legalDocs:any[]=[];try{const response=await fetch("/api/public/legal");if(response.ok)legalDocs=(await response.json()).documents||[]}catch{}
+    for(const legal of legalDocs){doc.addPage();header(`INFORMACIÓ LEGAL · ${String(legal.title||"").toUpperCase()}`,"Document oficial · Curs 2026–2027");y=56;for(const raw of String(legal.text||"").replace(/\r/g,"").replace(/\[([^\]]+)\]\([^)]*\)/g,"$1").replace(/\*\*/g,"").split("\n")){const value=raw.trim();if(!value){y+=3;continue}const heading=/^#{1,6}\s+/.test(value);const content=value.replace(/^#{1,6}\s+/,'').replace(/^[-*]\s+/,'• ');doc.setFont("Outfit",heading?"black":"normal");doc.setTextColor(heading?ink:"#30343b");doc.setFontSize(heading?10:7.5);const lines=doc.splitTextToSize(content,190),height=heading?5:3.8;if(y+lines.length*height>276){footer();doc.addPage();header(`INFORMACIÓ LEGAL · ${String(legal.title||"").toUpperCase()}`,"Continuació · Curs 2026–2027");y=56}doc.text(lines,M,y);y+=lines.length*height+(heading?2:1)}footer()}
+    doc.save(`preinscripcio-${record.code}.pdf`);
+  }
   async function registrationPdf(record: any) {
+    await registrationPdfHtml(record); return;
     const doc = new jsPDF({ unit: "mm", format: "a4" });
     await useOutfit(doc);
     const logo = await imageData(AFA_LOGO);
@@ -909,6 +944,7 @@ export default function Gestio() {
                           {String(record.status || "").toLowerCase() !== "llista d’espera" && !["admesa", "matriculada", "eliminada"].includes(String(record.status || "").toLowerCase()) && (
                             <button className="btn secondary" disabled={placementBusy === record.id} onClick={() => placementAction(record, "waitlist")}>Espera</button>
                           )}
+                          <button className="btn secondary" onClick={() => deleteRegistration(record)}>Eliminar</button>
                         </div>
                       </td>
                     </tr>
