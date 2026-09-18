@@ -22,6 +22,7 @@ export async function useOutfit(doc:jsPDF){
     doc.addFileToVFS('Outfit-Variable.ttf',outfitFontData);
     doc.addFont('Outfit-Variable.ttf','Outfit','normal');
     doc.addFont('Outfit-Variable.ttf','Outfit','bold');
+    doc.addFont('Outfit-Variable.ttf','Outfit','black');
     doc.setFont('Outfit','normal');
     return true;
   }catch(error){

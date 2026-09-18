@@ -85,7 +85,7 @@ function pdfHeader(doc: jsPDF, logo: string, title: string, subtitle: string) {
     try { doc.addImage(logo, "PNG", 16, 5, 22, 15); } catch { /* logo is optional */ }
   }
   doc.setTextColor(23, 19, 31);
-  doc.setFont("Outfit", "bold");
+  doc.setFont("Outfit", "black");
   doc.setFontSize(14);
   doc.text("AFA Escola Sant Salvador", 44, 12);
   doc.setFont("Outfit", "normal");
@@ -458,7 +458,7 @@ export default function Gestio() {
     doc.setFillColor(245, 247, 250);
     doc.roundedRect(16, 57, 178, 48, 4, 4, "F");
     doc.setTextColor(23, 19, 31);
-    doc.setFont("Outfit", "bold");
+    doc.setFont("Outfit", "black");
     doc.setFontSize(11);
     doc.text(record.student_name || "Alumne/a", 23, 68);
     doc.setFont("Outfit", "normal");
@@ -470,7 +470,7 @@ export default function Gestio() {
     doc.text(`Mitjà de pagament: ${record.payment_method || "Efectiu"}`, 23, 100);
     doc.text(`Concepte: quota corresponent a octubre i període registrat`, 23, 106);
     doc.setTextColor(23, 19, 31);
-    doc.setFont("Outfit", "bold");
+    doc.setFont("Outfit", "black");
     doc.setFontSize(11);
     doc.text("Període", 16, 127);
     doc.text("Import rebut", 16, 139);
